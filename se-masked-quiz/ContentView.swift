@@ -8,14 +8,45 @@
 import SwiftUI
 
 struct ContentView: View {
+
+    @Environment(\.seRepository) var repository
+    @State private var proposals: [SwiftEvolution] = []
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            List {
+                ForEach(proposals) { proposal in
+                    NavigationLink(value: proposal) {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                MarkdownText(proposal.title)
+                                    .font(.headline)
+                                Text("#\(Int(proposal.proposalId) ?? 0)")
+                                    .font(.caption)
+                            }
+                            MarkdownText(proposal.status)
+                                .font(.subheadline)
+                            MarkdownText(proposal.authors)
+                                .font(.subheadline)
+                            MarkdownText(proposal.reviewManager)
+                                .font(.subheadline)
+                        }
+                    }
+
+                }
+            }
+            .navigationTitle("Swift Evolution")
+            .navigationDestination(for: SwiftEvolution.self) { hashable in
+                DefaultWebView(htmlContent: .constant(hashable.content))
+            }
         }
-        .padding()
+        .task {
+            do {
+                proposals = try await repository.fetch()
+            } catch {
+                assertionFailure(String(describing: error))
+            }
+        }
     }
 }
 
