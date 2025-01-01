@@ -32,12 +32,12 @@ struct ContentView: View {
                                 .font(.subheadline)
                         }
                     }
-
                 }
             }
             .navigationTitle("Swift Evolution")
             .navigationDestination(for: SwiftEvolution.self) { hashable in
-                DefaultWebView(htmlContent: .constant(hashable.content))
+                DefaultWebView(htmlContent: hashable.content)
+                    .navigationTitle(hashable.title)
             }
         }
         .task {
