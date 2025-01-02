@@ -10,9 +10,9 @@ struct SwiftEvolution: Sendable, Codable, Identifiable, Hashable {
     var proposalId: String
     var title: String
     // Markdown format
-    var reviewManager: String
+    var reviewManager: String?
     // Markdown format
-    var status: String
+    var status: String?
     // Markdown format
     var authors: String
     // HTML format

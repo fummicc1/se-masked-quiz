@@ -24,11 +24,11 @@ struct ContentView: View {
                                 Text("#\(Int(proposal.proposalId) ?? 0)")
                                     .font(.caption)
                             }
-                            MarkdownText(proposal.status)
+                            MarkdownText(proposal.status ?? "")
                                 .font(.subheadline)
                             MarkdownText(proposal.authors)
                                 .font(.subheadline)
-                            MarkdownText(proposal.reviewManager)
+                            MarkdownText(proposal.reviewManager ?? "")
                                 .font(.subheadline)
                         }
                     }
