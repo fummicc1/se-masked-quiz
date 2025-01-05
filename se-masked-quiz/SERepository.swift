@@ -9,10 +9,10 @@ import SwiftUI
 import Foundation
 
 struct SERepository: Sendable {
-    func fetch() async throws -> [SwiftEvolution] {
+    func fetch(offset: Int) async throws -> [SwiftEvolution] {
         let microCmsApiKey = Env.microCmsApiKey
         let microCmsApiEndpoint = Env.microCmsApiEndpoint
-        let requestURL = URL(string: "https://\(microCmsApiEndpoint).microcms.io/api/v1/proposals")!
+        let requestURL = URL(string: "https://\(microCmsApiEndpoint).microcms.io/api/v1/proposals?offset=\(offset)")!
         var request = URLRequest(url: requestURL)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -7,31 +7,42 @@
 
 import SwiftUI
 
+
 struct ContentView: View {
     
     @Environment(\.seRepository) var repository
-    @State private var proposals: [SwiftEvolution] = []
+    @State private var proposals: AsyncProposals = .idle
     @State private var modalWebUrl: URL?
+    @State private var offset: Int = 0
+    @State private var shouldLoadNextPage: Bool = false
     
     var body: some View {
         GeometryReader { proxy in
             NavigationStack {
-                List {
-                    ForEach(proposals) { proposal in
-                        NavigationLink(value: proposal) {
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    MarkdownText(proposal.title)
-                                        .font(.headline)
-                                    Text("#\(Int(proposal.proposalId) ?? 0)")
-                                        .font(.caption)
+                ScrollViewReader { scrollProxy in
+                    List {
+                        ForEach(proposals.content) { proposal in
+                            NavigationLink(value: proposal) {
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        MarkdownText(proposal.title)
+                                            .font(.headline)
+                                        Text("#\(Int(proposal.proposalId) ?? 0)")
+                                            .font(.caption)
+                                    }
+                                    MarkdownText(proposal.status ?? "")
+                                        .font(.subheadline)
+                                    MarkdownText(proposal.authors)
+                                        .font(.subheadline)
+                                    MarkdownText(proposal.reviewManager ?? "")
+                                        .font(.subheadline)
                                 }
-                                MarkdownText(proposal.status ?? "")
-                                    .font(.subheadline)
-                                MarkdownText(proposal.authors)
-                                    .font(.subheadline)
-                                MarkdownText(proposal.reviewManager ?? "")
-                                    .font(.subheadline)
+                            }
+                            .onAppear {
+                                guard let proposalIndex = proposals.content.firstIndex(of: proposal) else {
+                                    return
+                                }
+                                shouldLoadNextPage = proposalIndex >= proposals.content.count - 5
                             }
                         }
                     }
@@ -47,11 +58,36 @@ struct ContentView: View {
                     .navigationTitle(hashable.title)
                 }
             }
+            .onChange(of: shouldLoadNextPage, { oldValue, newValue in
+                if !oldValue, newValue {
+                    if proposals.isLoading {
+                        return
+                    }
+                    proposals.startLoading()
+                    Task {
+                        do {
+                            let newProposals = try await repository.fetch(offset: offset)
+                            var currentProposals = proposals.content
+                            currentProposals.append(contentsOf: newProposals)
+                            proposals = .loaded(currentProposals)
+                            offset = currentProposals.count
+                        } catch {
+                            proposals = .error(error)
+                        }
+                    }
+                }
+            })
             .task {
+                if !proposals.content.isEmpty || proposals.isLoading {
+                    return
+                }
                 do {
-                    proposals = try await repository.fetch()
+                    proposals.startLoading()
+                    let proposals = try await repository.fetch(offset: offset)
+                    offset = proposals.count
+                    self.proposals = .loaded(proposals)
                 } catch {
-                    assertionFailure(String(describing: error))
+                    self.proposals = .error(error)
                 }
             }
             #if os(iOS)
