@@ -54,6 +54,15 @@ struct ContentView: View {
                     assertionFailure(String(describing: error))
                 }
             }
+            #if os(iOS)
+            // for iOS
+            .sheet(item: $modalWebUrl, content: { url in
+                DefaultWebView(htmlContent: .url(url)) {
+                    modalWebUrl = $0
+                }
+            })
+            #else
+            // for macOS
             .sheet(item: $modalWebUrl) { url in
                 VStack(spacing: 0) {
                     HStack {
@@ -73,6 +82,7 @@ struct ContentView: View {
                     )
                 }
             }
+            #endif
         }
     }
 }

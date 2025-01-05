@@ -46,16 +46,33 @@ import UIKit
 struct DefaultWebView: UIViewRepresentable {
     typealias UIViewType = WKWebView
 
-    let htmlContent: String
+    let htmlContent: HTMLContent
+    let onNavigate: (URL) -> Void
 
     func makeUIView(context: Context) -> UIViewType {
         let view = UIViewType()
-        view.loadHTMLString(parse(html: htmlContent), baseURL: nil)
+        view.navigationDelegate = context.coordinator
+        Task {
+            await view.loadHtmlContent(htmlContent)
+        }
         return view
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        uiView.loadHTMLString(parse(html: htmlContent), baseURL: nil)
+        Task {
+            await uiView.loadHtmlContent(htmlContent)
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        .init(onNavigate: onNavigate)
+    }
+    
+    final class Coordinator: NSObject {
+        let onNavigate: (URL) -> Void
+        init(onNavigate: @escaping (URL) -> Void) {
+            self.onNavigate = onNavigate
+        }
     }
 }
 #endif
@@ -182,9 +199,13 @@ extension DefaultWebView.Coordinator: WKNavigationDelegate {
         if isOriginal {
             return .allow
         }
+        let canShowOnThisWebView = webView.url?.absoluteString != "about:blank"
+        if canShowOnThisWebView {
+            return .allow
+        }
         if let destinationURL = navigationAction.request.url {
             onNavigate(destinationURL)
         }
-        return webView.url?.absoluteString == "about:blank" ? .cancel : .allow
+        return .cancel
     }
 }
