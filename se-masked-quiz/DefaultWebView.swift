@@ -8,6 +8,38 @@
 import SwiftUI
 import WebKit
 
+enum HTMLContent {
+    case string(String)
+    case url(URL)
+    
+    var content: String {
+        get async {
+            switch self {
+            case .string(let string):
+                return string
+            case .url(let url):
+                // Launch a task to load on background thread.
+                let loadingTask = Task {
+                    try Data(contentsOf: url)
+                }
+                guard let data = try? await loadingTask.value else {
+                    return ""
+                }
+                return String(data: data, encoding: .utf8) ?? ""
+            }
+        }
+    }
+    
+    var url: URL? {
+        switch self {
+        case .url(let url):
+            return url
+        default:
+            return nil
+        }
+    }
+}
+
 #if canImport(UIKit)
 import UIKit
 
@@ -34,22 +66,55 @@ import AppKit
 struct DefaultWebView: NSViewRepresentable {
     typealias NSViewType = WKWebView
     
-    let htmlContent: String
+    let htmlContent: HTMLContent
+    let onNavigate: (URL) -> Void
 
     func makeNSView(context: Context) -> NSViewType {
         let view = NSViewType()
-        view.loadHTMLString(parse(html: htmlContent), baseURL: nil)
+        view.navigationDelegate = context.coordinator
+        Task {
+            await view.loadHtmlContent(htmlContent)
+        }
         return view
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
-        nsView.loadHTMLString(parse(html: htmlContent), baseURL: nil)
+        Task {
+            await nsView.loadHtmlContent(htmlContent)
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onNavigate: onNavigate)
+    }
+    
+    final class Coordinator: NSObject {
+        let onNavigate: (URL) -> Void
+        
+        init(onNavigate: @escaping (URL) -> Void) {
+            self.onNavigate = onNavigate
+        }
     }
 }
 #endif
 
+fileprivate extension WKWebView {
+    func loadHtmlContent(_ htmlContent: HTMLContent) async {
+        if let url = htmlContent.url {
+            load(URLRequest(url: url))
+        } else {
+            loadHTMLString(await parse(html: htmlContent), baseURL: nil)
+        }
+    }
+}
+
 // ref: https://designcode.io/swiftui-advanced-handbook-code-highlighting-in-a-webview
-fileprivate func parse(html: String) -> String {
+fileprivate func parse(html: HTMLContent) async -> String {
+    let htmlContent = await html.content
+    if case .url = html {
+        // if the content is from URL, we don't need to add any styling.
+        return htmlContent
+    }
     let htmlStart = """
         <HTML>
         <HEAD>
@@ -92,7 +157,7 @@ fileprivate func parse(html: String) -> String {
     """
 
     let codeRegex = "<code.*?>"
-    let contentWithCodeStyling = html.replacingOccurrences(
+    let contentWithCodeStyling = htmlContent.replacingOccurrences(
         of: codeRegex,
         with: "$0",
         options: .regularExpression,
@@ -109,4 +174,17 @@ fileprivate func parse(html: String) -> String {
     """
 
     return htmlStart + contentWithCodeStyling + htmlEnd
+}
+
+extension DefaultWebView.Coordinator: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        let isOriginal = navigationAction.request.url?.absoluteString == "about:blank"
+        if isOriginal {
+            return .allow
+        }
+        if let destinationURL = navigationAction.request.url {
+            onNavigate(destinationURL)
+        }
+        return webView.url?.absoluteString == "about:blank" ? .cancel : .allow
+    }
 }
