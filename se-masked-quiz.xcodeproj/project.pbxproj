@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D35B67212D3031CD004527E6 /* AWSACM in Frameworks */ = {isa = PBXBuildFile; productRef = D35B67202D3031CD004527E6 /* AWSACM */; };
+		D35B67232D3031CD004527E6 /* AWSS3 in Frameworks */ = {isa = PBXBuildFile; productRef = D35B67222D3031CD004527E6 /* AWSS3 */; };
+		D35B67262D3032FA004527E6 /* AWSSDKIdentity in Frameworks */ = {isa = PBXBuildFile; productRef = D35B67252D3032FA004527E6 /* AWSSDKIdentity */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D3921FF02D252F0C008C3732 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +58,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D35B67232D3031CD004527E6 /* AWSS3 in Frameworks */,
+				D35B67262D3032FA004527E6 /* AWSSDKIdentity in Frameworks */,
+				D35B67212D3031CD004527E6 /* AWSACM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +81,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D35B67242D3032FA004527E6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		D3921FD52D252F0A008C3732 = {
 			isa = PBXGroup;
 			children = (
 				D3921FE02D252F0A008C3732 /* se-masked-quiz */,
 				D3921FF22D252F0C008C3732 /* se-masked-quizTests */,
 				D3921FFC2D252F0C008C3732 /* se-masked-quizUITests */,
+				D35B67242D3032FA004527E6 /* Frameworks */,
 				D3921FDF2D252F0A008C3732 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +129,9 @@
 			);
 			name = "se-masked-quiz";
 			packageProductDependencies = (
+				D35B67202D3031CD004527E6 /* AWSACM */,
+				D35B67222D3031CD004527E6 /* AWSS3 */,
+				D35B67252D3032FA004527E6 /* AWSSDKIdentity */,
 			);
 			productName = "se-masked-quiz";
 			productReference = D3921FDE2D252F0A008C3732 /* se-masked-quiz.app */;
@@ -195,6 +215,9 @@
 			);
 			mainGroup = D3921FD52D252F0A008C3732;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D35B671F2D3031CD004527E6 /* XCRemoteSwiftPackageReference "aws-sdk-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D3921FDF2D252F0A008C3732 /* Products */;
 			projectDirPath = "";
@@ -591,6 +614,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D35B671F2D3031CD004527E6 /* XCRemoteSwiftPackageReference "aws-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/awslabs/aws-sdk-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.74;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D35B67202D3031CD004527E6 /* AWSACM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D35B671F2D3031CD004527E6 /* XCRemoteSwiftPackageReference "aws-sdk-swift" */;
+			productName = AWSACM;
+		};
+		D35B67222D3031CD004527E6 /* AWSS3 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D35B671F2D3031CD004527E6 /* XCRemoteSwiftPackageReference "aws-sdk-swift" */;
+			productName = AWSS3;
+		};
+		D35B67252D3032FA004527E6 /* AWSSDKIdentity */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D35B671F2D3031CD004527E6 /* XCRemoteSwiftPackageReference "aws-sdk-swift" */;
+			productName = AWSSDKIdentity;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D3921FD62D252F0A008C3732 /* Project object */;
 }

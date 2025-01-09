@@ -54,13 +54,18 @@ struct ContentView: View {
                 }
                 .navigationTitle("Swift Evolution")
                 .navigationDestination(for: SwiftEvolution.self) { proposal in
-                    DefaultWebView(
+                    let shouldLoadQuiz = quizViewModel.currentQuiz?.proposalId != proposal.proposalId
+                    if shouldLoadQuiz {
+                        quizViewModel.startQuiz(for: proposal.proposalId)
+                    }
+                    return DefaultWebView(
                         htmlContent: .string(proposal.content),
                         onNavigate: { url in
                             modalWebUrl = url
                         },
                         onMaskedWordTap: { maskIndex in
                             print("Tapped mask index:", maskIndex)
+                            quizViewModel.showQuizSelections(index: maskIndex)
                         }
                     )
                     .navigationTitle(proposal.title)

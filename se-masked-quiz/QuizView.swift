@@ -6,8 +6,10 @@ struct QuizView: View {
     var body: some View {
         VStack(spacing: 20) {
             if let quiz = viewModel.currentQuiz {
-                Text("マスクされた単語: \(quiz.maskedWord)")
-                    .font(.headline)
+                Text(
+                    "マスクされた単語: \(Array(repeating: "◻︎", count: quiz.answer.count).joined(separator: ""))"
+                )
+                .font(.headline)
                 
                 ForEach(quiz.allChoices, id: \.self) { choice in
                     Button(action: {

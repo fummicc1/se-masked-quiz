@@ -6,6 +6,7 @@ final class QuizViewModel: ObservableObject {
     @Published var isShowingQuiz = false
     @Published var selectedAnswer: String?
     @Published var isCorrect: Bool?
+    @Published var allQuiz: [Quiz] = []
     
     private let quizRepository: QuizRepository
     
@@ -16,7 +17,7 @@ final class QuizViewModel: ObservableObject {
     func startQuiz(for proposalId: String) {
         Task {
             do {
-                currentQuiz = try await quizRepository.fetchQuiz(for: proposalId)
+                allQuiz = try await quizRepository.fetchQuiz(for: proposalId)
                 isShowingQuiz = true
                 selectedAnswer = nil
                 isCorrect = nil
@@ -24,6 +25,11 @@ final class QuizViewModel: ObservableObject {
                 print("Failed to fetch quiz:", error)
             }
         }
+    }
+    
+    func showQuizSelections(index: Int) {
+        currentQuiz = allQuiz[index]
+        isShowingQuiz = true
     }
     
     func selectAnswer(_ answer: String) {
