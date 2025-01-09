@@ -48,10 +48,34 @@ struct DefaultWebView: UIViewRepresentable {
 
     let htmlContent: HTMLContent
     let onNavigate: (URL) -> Void
+    let onMaskedWordTap: (Int) -> Void
 
     func makeUIView(context: Context) -> UIViewType {
-        let view = UIViewType()
+        let config = WKWebViewConfiguration()
+        let userScript = WKUserScript(
+            source: """
+            document.addEventListener('click', function(e) {
+                console.log('Click event detected:', e.target);
+                if (e.target.classList.contains('masked-word')) {
+                    console.log('Masked word clicked:', e.target.dataset.maskIndex);
+                    window.webkit.messageHandlers.maskedWordTapped.postMessage({
+                        maskIndex: parseInt(e.target.dataset.maskIndex)
+                    });
+                }
+            });
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(userScript)
+        config.userContentController.add(context.coordinator, name: "maskedWordTapped")
+        
+        let view = UIViewType(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
+        
+        // デバッグ用のコンソールメッセージを有効化
+        view.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        
         Task {
             await view.loadHtmlContent(htmlContent)
         }
@@ -65,13 +89,16 @@ struct DefaultWebView: UIViewRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        .init(onNavigate: onNavigate)
+        .init(onNavigate: onNavigate, onMaskedWordTap: onMaskedWordTap)
     }
     
     final class Coordinator: NSObject {
         let onNavigate: (URL) -> Void
-        init(onNavigate: @escaping (URL) -> Void) {
+        let onMaskedWordTap: (Int) -> Void
+        
+        init(onNavigate: @escaping (URL) -> Void, onMaskedWordTap: @escaping (Int) -> Void) {
             self.onNavigate = onNavigate
+            self.onMaskedWordTap = onMaskedWordTap
         }
     }
 }
@@ -85,9 +112,29 @@ struct DefaultWebView: NSViewRepresentable {
     
     let htmlContent: HTMLContent
     let onNavigate: (URL) -> Void
+    let onMaskedWordTap: (Int) -> Void
 
     func makeNSView(context: Context) -> NSViewType {
-        let view = NSViewType()
+        let config = WKWebViewConfiguration()
+        let userScript = WKUserScript(
+            source: """
+            document.addEventListener('click', function(e) {
+                console.log('Click event detected:', e.target);
+                if (e.target.classList.contains('masked-word')) {
+                    console.log('Masked word clicked:', e.target.dataset.maskIndex);
+                    window.webkit.messageHandlers.maskedWordTapped.postMessage({
+                        maskIndex: parseInt(e.target.dataset.maskIndex)
+                    });
+                }
+            });
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(userScript)
+        config.userContentController.add(context.coordinator, name: "maskedWordTapped")
+        
+        let view = NSViewType(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         Task {
             await view.loadHtmlContent(htmlContent)
@@ -102,14 +149,16 @@ struct DefaultWebView: NSViewRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(onNavigate: onNavigate)
+        Coordinator(onNavigate: onNavigate, onMaskedWordTap: onMaskedWordTap)
     }
     
     final class Coordinator: NSObject {
         let onNavigate: (URL) -> Void
+        let onMaskedWordTap: (Int) -> Void
         
-        init(onNavigate: @escaping (URL) -> Void) {
+        init(onNavigate: @escaping (URL) -> Void, onMaskedWordTap: @escaping (Int) -> Void) {
             self.onNavigate = onNavigate
+            self.onMaskedWordTap = onMaskedWordTap
         }
     }
 }
@@ -132,6 +181,15 @@ fileprivate func parse(html: HTMLContent) async -> String {
         // if the content is from URL, we don't need to add any styling.
         return htmlContent
     }
+    
+    // HTMLエスケープを解除
+    let unescapedContent = htmlContent
+        .replacingOccurrences(of: "&lt;", with: "<")
+        .replacingOccurrences(of: "&gt;", with: ">")
+        .replacingOccurrences(of: "&quot;", with: "\"")
+        .replacingOccurrences(of: "&#39;", with: "'")
+        .replacingOccurrences(of: "&amp;", with: "&")
+    
     let htmlStart = """
         <HTML>
         <HEAD>
@@ -168,13 +226,40 @@ fileprivate func parse(html: HTMLContent) async -> String {
                     border-radius: 4px;
                     color: #e06c75;
                 }
+                .masked-word {
+                    background-color: #000;
+                    color: #fff;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    user-select: none;
+                    display: inline-block;  /* インライン要素をブロック化してクリック領域を確保 */
+                    pointer-events: auto;   /* クリックイベントを確実に有効化 */
+                }
+                .masked-word:hover {
+                    background-color: #333;
+                }
             </style>
+            <script>
+                function wrapMaskedWords() {
+                    const text = document.body.innerHTML;
+                    const pattern = /(◻︎)+/g;
+                    let maskIndex = 0;
+                    const wrappedText = text.replace(pattern, function(match) {
+                        return `<span class="masked-word" data-mask-index="${maskIndex++}">${match}</span>`;
+                    });
+                    document.body.innerHTML = wrappedText;
+                    
+                    console.log('Total masked groups:', maskIndex);
+                }
+                window.addEventListener('load', wrapMaskedWords);
+            </script>
         </HEAD>
         <BODY>
     """
 
     let codeRegex = "<code.*?>"
-    let contentWithCodeStyling = htmlContent.replacingOccurrences(
+    let contentWithCodeStyling = unescapedContent.replacingOccurrences(
         of: codeRegex,
         with: "$0",
         options: .regularExpression,
@@ -207,5 +292,15 @@ extension DefaultWebView.Coordinator: WKNavigationDelegate {
             onNavigate(destinationURL)
         }
         return .cancel
+    }
+}
+
+extension DefaultWebView.Coordinator: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "maskedWordTapped",
+           let body = message.body as? [String: Any],
+           let maskIndex = body["maskIndex"] as? Int {
+            onMaskedWordTap(maskIndex)
+        }
     }
 }

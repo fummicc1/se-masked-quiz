@@ -5,6 +5,8 @@
 //  Created by Fumiya Tanaka on 2025/01/01.
 //
 
+import Foundation
+
 struct SwiftEvolution: Sendable, Codable, Identifiable, Hashable {
     var id: String
     var proposalId: String

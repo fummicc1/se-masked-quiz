@@ -7,14 +7,19 @@
 
 import SwiftUI
 
-
 struct ContentView: View {
-    
     @Environment(\.seRepository) var repository
+    @Environment(\.quizRepository) var quizRepository
+    @StateObject private var quizViewModel: QuizViewModel
     @State private var proposals: AsyncProposals = .idle
     @State private var modalWebUrl: URL?
     @State private var offset: Int = 0
     @State private var shouldLoadNextPage: Bool = false
+    
+    init() {
+        let viewModel = QuizViewModel(quizRepository: QuizRepository.defaultValue)
+        _quizViewModel = StateObject(wrappedValue: viewModel)
+    }
     
     var body: some View {
         GeometryReader { proxy in
@@ -48,14 +53,20 @@ struct ContentView: View {
                     }
                 }
                 .navigationTitle("Swift Evolution")
-                .navigationDestination(for: SwiftEvolution.self) { hashable in
+                .navigationDestination(for: SwiftEvolution.self) { proposal in
                     DefaultWebView(
-                        htmlContent: .string(hashable.content),
+                        htmlContent: .string(proposal.content),
                         onNavigate: { url in
                             modalWebUrl = url
+                        },
+                        onMaskedWordTap: { maskIndex in
+                            print("Tapped mask index:", maskIndex)
                         }
                     )
-                    .navigationTitle(hashable.title)
+                    .navigationTitle(proposal.title)
+                    .sheet(isPresented: $quizViewModel.isShowingQuiz) {
+                        QuizView(viewModel: quizViewModel)
+                    }
                 }
             }
             .onChange(of: shouldLoadNextPage, { oldValue, newValue in
@@ -91,14 +102,15 @@ struct ContentView: View {
                 }
             }
             #if os(iOS)
-            // for iOS
             .sheet(item: $modalWebUrl, content: { url in
-                DefaultWebView(htmlContent: .url(url)) {
-                    modalWebUrl = $0
-                }
+                DefaultWebView(
+                    htmlContent: .url(url),
+                    onNavigate: { modalWebUrl = $0 },
+                    onMaskedWordTap: { _ in
+                    }
+                )
             })
             #else
-            // for macOS
             .sheet(item: $modalWebUrl) { url in
                 VStack(spacing: 0) {
                     HStack {
@@ -109,9 +121,12 @@ struct ContentView: View {
                         }
                     }
                     .padding(8)
-                    DefaultWebView(htmlContent: .url(url)) {
-                        modalWebUrl = $0
-                    }
+                    DefaultWebView(
+                        htmlContent: .url(url),
+                        onNavigate: { modalWebUrl = $0 },
+                        onMaskedWordTap: { _ in
+                        }
+                    )
                     .frame(
                         width: proxy.size.width * 0.8,
                         height: proxy.size.height * 0.8
