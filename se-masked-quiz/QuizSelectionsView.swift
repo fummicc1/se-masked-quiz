@@ -1,7 +1,11 @@
 import SwiftUI
 
-struct QuizView: View {
-    @ObservedObject var viewModel: QuizViewModel
+struct QuizSelectionsView: View {
+    @StateObject var viewModel: QuizViewModel
+    
+    init(viewModel: StateObject<QuizViewModel>) {
+        self._viewModel = viewModel
+    }
     
     var body: some View {
         VStack(spacing: 20) {
@@ -55,5 +59,9 @@ struct QuizView: View {
 }
 
 #Preview {
-    QuizView(viewModel: QuizViewModel(quizRepository: QuizRepository.defaultValue))
-} 
+    QuizSelectionsView(
+        viewModel: StateObject(
+            wrappedValue: QuizViewModel(quizRepository: QuizRepository.defaultValue)
+        )
+    )
+}

@@ -24,54 +24,38 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { proxy in
             NavigationStack {
-                ScrollViewReader { scrollProxy in
-                    List {
-                        ForEach(proposals.content) { proposal in
-                            NavigationLink(value: proposal) {
-                                VStack(alignment: .leading) {
-                                    HStack {
-                                        MarkdownText(proposal.title)
-                                            .font(.headline)
-                                        Text("#\(Int(proposal.proposalId) ?? 0)")
-                                            .font(.caption)
-                                    }
-                                    MarkdownText(proposal.status ?? "")
-                                        .font(.subheadline)
-                                    MarkdownText(proposal.authors)
-                                        .font(.subheadline)
-                                    MarkdownText(proposal.reviewManager ?? "")
-                                        .font(.subheadline)
+                List {
+                    ForEach(proposals.content) { proposal in
+                        NavigationLink(value: proposal) {
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    MarkdownText(proposal.title)
+                                        .font(.headline)
+                                    Text("#\(Int(proposal.proposalId) ?? 0)")
+                                        .font(.caption)
                                 }
+                                MarkdownText(proposal.status ?? "")
+                                    .font(.subheadline)
+                                MarkdownText(proposal.authors)
+                                    .font(.subheadline)
+                                MarkdownText(proposal.reviewManager ?? "")
+                                    .font(.subheadline)
                             }
-                            .onAppear {
-                                guard let proposalIndex = proposals.content.firstIndex(of: proposal) else {
-                                    return
-                                }
-                                shouldLoadNextPage = proposalIndex >= proposals.content.count - 5
+                        }
+                        .onAppear {
+                            guard let proposalIndex = proposals.content.firstIndex(of: proposal) else {
+                                return
                             }
+                            shouldLoadNextPage = proposalIndex >= proposals.content.count - 5
                         }
                     }
                 }
                 .navigationTitle("Swift Evolution")
                 .navigationDestination(for: SwiftEvolution.self) { proposal in
-                    let shouldLoadQuiz = quizViewModel.currentQuiz?.proposalId != proposal.proposalId
-                    if shouldLoadQuiz {
-                        quizViewModel.startQuiz(for: proposal.proposalId)
-                    }
-                    return DefaultWebView(
-                        htmlContent: .string(proposal.content),
-                        onNavigate: { url in
-                            modalWebUrl = url
-                        },
-                        onMaskedWordTap: { maskIndex in
-                            print("Tapped mask index:", maskIndex)
-                            quizViewModel.showQuizSelections(index: maskIndex)
-                        }
+                    ProposalQuizView(
+                        quizViewModel: _quizViewModel,
+                        proposal: proposal
                     )
-                    .navigationTitle(proposal.title)
-                    .sheet(isPresented: $quizViewModel.isShowingQuiz) {
-                        QuizView(viewModel: quizViewModel)
-                    }
                 }
             }
             .onChange(of: shouldLoadNextPage, { oldValue, newValue in
@@ -112,7 +96,8 @@ struct ContentView: View {
                     htmlContent: .url(url),
                     onNavigate: { modalWebUrl = $0 },
                     onMaskedWordTap: { _ in
-                    }
+                    },
+                    contentOffsetY: .constant(nil)
                 )
             })
             #else
@@ -146,6 +131,19 @@ struct ContentView: View {
 extension URL: @retroactive Identifiable {
     public var id: String {
         absoluteString
+    }
+}
+
+extension Binding  {
+    func isNotNil<V>() -> Binding<Bool> where Value == V? {
+        .init(
+            get: { self.wrappedValue != nil
+            },
+            set: {
+                if !$0 {
+                    self.wrappedValue = nil
+                }
+            })
     }
 }
 
