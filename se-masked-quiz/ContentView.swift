@@ -113,7 +113,7 @@ struct ContentView: View {
                         onMaskedWordTap: { _ in
                         },
                         isCorrect: .constant([:]),
-                        answers: [:]
+                        answers: .constant([:])
                     )
                     .frame(
                         width: proxy.size.width * 0.8,

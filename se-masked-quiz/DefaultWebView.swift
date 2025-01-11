@@ -51,34 +51,10 @@ struct DefaultWebView: UIViewRepresentable {
     let onMaskedWordTap: (Int) -> Void
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
-    @State private var scrollContentOffsetY: CGFloat = 0
 
     func makeUIView(context: Context) -> UIViewType {
-        let config = WKWebViewConfiguration()
-        let userScript = WKUserScript(
-            source: """
-            document.addEventListener('click', function(e) {
-                console.log('Click event detected:', e.target);
-                if (e.target.classList.contains('masked-word')) {
-                    console.log('Masked word clicked:', e.target.dataset.maskIndex);
-                    window.webkit.messageHandlers.maskedWordTapped.postMessage({
-                        maskIndex: parseInt(e.target.dataset.maskIndex)
-                    });
-                }
-            });
-            """,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        config.userContentController.addUserScript(userScript)
-        config.userContentController.add(context.coordinator, name: "maskedWordTapped")
-        
-        let view = UIViewType(frame: .zero, configuration: config)
+        let view = UIViewType(frame: .zero, configuration: Self.makeConfiguration(coordinator: context.coordinator))
         view.navigationDelegate = context.coordinator
-        view.scrollView.delegate = context.coordinator
-
-        // デバッグ用のコンソールメッセージを有効化
-        view.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
         Task {
             await view.loadHtmlContent(
@@ -101,38 +77,6 @@ struct DefaultWebView: UIViewRepresentable {
             )
         }
     }
-    
-    func makeCoordinator() -> Coordinator {
-        .init(
-            scrollContentOffsetY: $scrollContentOffsetY,
-            isCorrect: $isCorrect,
-            answers: $answers,
-            onNavigate: onNavigate,
-            onMaskedWordTap: onMaskedWordTap
-        )
-    }
-    
-    final class Coordinator: NSObject {
-        let onNavigate: (URL) -> Void
-        let onMaskedWordTap: (Int) -> Void
-        @Binding var scrollContentOffsetY: CGFloat
-        @Binding var isCorrect: [Int: Bool]
-        @Binding var answers: [Int: String]
-
-        init(
-            scrollContentOffsetY: Binding<CGFloat>,
-            isCorrect: Binding<[Int: Bool]>,
-            answers: Binding<[Int: String]>,
-            onNavigate: @escaping (URL) -> Void,
-            onMaskedWordTap: @escaping (Int) -> Void
-        ) {
-            self._isCorrect = isCorrect
-            self._answers = answers
-            self._scrollContentOffsetY = scrollContentOffsetY
-            self.onNavigate = onNavigate
-            self.onMaskedWordTap = onMaskedWordTap
-        }
-    }
 }
 #endif
 
@@ -149,29 +93,15 @@ struct DefaultWebView: NSViewRepresentable {
     @Binding var answers: [Int: String]
 
     func makeNSView(context: Context) -> NSViewType {
-        let config = WKWebViewConfiguration()
-        let userScript = WKUserScript(
-            source: """
-            document.addEventListener('click', function(e) {
-                console.log('Click event detected:', e.target);
-                if (e.target.classList.contains('masked-word')) {
-                    console.log('Masked word clicked:', e.target.dataset.maskIndex);
-                    window.webkit.messageHandlers.maskedWordTapped.postMessage({
-                        maskIndex: parseInt(e.target.dataset.maskIndex)
-                    });
-                }
-            });
-            """,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        config.userContentController.addUserScript(userScript)
-        config.userContentController.add(context.coordinator, name: "maskedWordTapped")
-        
-        let view = NSViewType(frame: .zero, configuration: config)
+        let view = NSViewType(frame: .zero, configuration: Self.makeConfiguration(coordinator: context.coordinator))
         view.navigationDelegate = context.coordinator
+        
         Task {
-            await view.loadHtmlContent(htmlContent)
+            await view.loadHtmlContent(
+                htmlContent,
+                isCorrect: isCorrect,
+                answers: answers
+            )
         }
         return view
     }
@@ -181,26 +111,46 @@ struct DefaultWebView: NSViewRepresentable {
             await nsView.loadHtmlContent(
                 htmlContent,
                 isCorrect: isCorrect,
-                answers: answers
+                answers: answers,
+                scrollContentOffsetY: context.coordinator.scrollContentOffsetY
             )
         }
     }
-    
+}
+#endif
+
+extension DefaultWebView {
+
     func makeCoordinator() -> Coordinator {
-        Coordinator(onNavigate: onNavigate, onMaskedWordTap: onMaskedWordTap)
+        .init(
+            isCorrect: $isCorrect,
+            answers: $answers,
+            onNavigate: onNavigate,
+            onMaskedWordTap: onMaskedWordTap
+        )
     }
-    
+
     final class Coordinator: NSObject {
         let onNavigate: (URL) -> Void
         let onMaskedWordTap: (Int) -> Void
-        
-        init(onNavigate: @escaping (URL) -> Void, onMaskedWordTap: @escaping (Int) -> Void) {
+        var scrollContentOffsetY: CGFloat
+        @Binding var isCorrect: [Int: Bool]
+        @Binding var answers: [Int: String]
+
+        init(
+            isCorrect: Binding<[Int: Bool]>,
+            answers: Binding<[Int: String]>,
+            onNavigate: @escaping (URL) -> Void,
+            onMaskedWordTap: @escaping (Int) -> Void
+        ) {
+            self._isCorrect = isCorrect
+            self._answers = answers
+            self.scrollContentOffsetY = 0
             self.onNavigate = onNavigate
             self.onMaskedWordTap = onMaskedWordTap
         }
     }
 }
-#endif
 
 fileprivate extension WKWebView {
 
@@ -389,15 +339,52 @@ extension DefaultWebView.Coordinator: WKScriptMessageHandler {
            let maskIndex = body["maskIndex"] as? Int {
             onMaskedWordTap(maskIndex)
         }
+        else if message.name == "scrollPositionChanged",
+                let body = message.body as? [String: Any],
+                let scrollY = body["scrollY"] as? CGFloat {
+            print("scrollY from JavaScript: \(scrollY)")
+            scrollContentOffsetY = scrollY
+        }
     }
 }
 
-#if canImport(UIKit)
-extension DefaultWebView.Coordinator: UIScrollViewDelegate {
-    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        print("scrollView.contentOffset.y: \(scrollView.contentOffset.y)")
-        scrollContentOffsetY = scrollView.contentOffset.y
+// Common WebView configuration
+private extension DefaultWebView {
+    static func makeConfiguration(coordinator: Coordinator) -> WKWebViewConfiguration {
+        let config = WKWebViewConfiguration()
+        let userScript = WKUserScript(
+            source: """
+            document.addEventListener('click', function(e) {
+                console.log('Click event detected:', e.target);
+                if (e.target.classList.contains('masked-word')) {
+                    console.log('Masked word clicked:', e.target.dataset.maskIndex);
+                    window.webkit.messageHandlers.maskedWordTapped.postMessage({
+                        maskIndex: parseInt(e.target.dataset.maskIndex)
+                    });
+                }
+            });
+            
+            // Add scroll event listener
+            let scrollTimeout;
+            window.addEventListener('scroll', function() {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(function() {
+                    window.webkit.messageHandlers.scrollPositionChanged.postMessage({
+                        scrollY: window.scrollY
+                    });
+                }, 100);
+            });
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(userScript)
+        config.userContentController.add(coordinator, name: "maskedWordTapped")
+        config.userContentController.add(coordinator, name: "scrollPositionChanged")
+        
+        // デバッグ用のコンソールメッセージを有効化
+        config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        
+        return config
     }
-
 }
-#endif
