@@ -49,7 +49,6 @@ struct DefaultWebView: UIViewRepresentable {
     let htmlContent: HTMLContent
     let onNavigate: (URL) -> Void
     let onMaskedWordTap: (Int) -> Void
-    @Binding var contentOffsetY: CGFloat?
 
     func makeUIView(context: Context) -> UIViewType {
         let config = WKWebViewConfiguration()
@@ -73,7 +72,6 @@ struct DefaultWebView: UIViewRepresentable {
         
         let view = UIViewType(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
-        view.scrollView.delegate = context.coordinator
         
         // デバッグ用のコンソールメッセージを有効化
         view.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
@@ -88,14 +86,10 @@ struct DefaultWebView: UIViewRepresentable {
         Task {
             await uiView.loadHtmlContent(htmlContent)
         }
-        if let contentOffsetY = self.contentOffsetY {
-            uiView.scrollView.contentOffset.y = contentOffsetY
-        }
     }
     
     func makeCoordinator() -> Coordinator {
         .init(
-            contentOffsetY: _contentOffsetY,
             onNavigate: onNavigate,
             onMaskedWordTap: onMaskedWordTap
         )
@@ -104,14 +98,11 @@ struct DefaultWebView: UIViewRepresentable {
     final class Coordinator: NSObject {
         let onNavigate: (URL) -> Void
         let onMaskedWordTap: (Int) -> Void
-        @Binding var contentOffsetY: CGFloat?
         
         init(
-            contentOffsetY: Binding<CGFloat?>,
             onNavigate: @escaping (URL) -> Void,
             onMaskedWordTap: @escaping (Int) -> Void
         ) {
-            self._contentOffsetY = contentOffsetY
             self.onNavigate = onNavigate
             self.onMaskedWordTap = onMaskedWordTap
         }
@@ -151,7 +142,6 @@ struct DefaultWebView: NSViewRepresentable {
         
         let view = NSViewType(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
-        view.enclosingScrollView
         Task {
             await view.loadHtmlContent(htmlContent)
         }
@@ -320,19 +310,3 @@ extension DefaultWebView.Coordinator: WKScriptMessageHandler {
         }
     }
 }
-
-#if canImport(UIKit)
-extension DefaultWebView.Coordinator: UIScrollViewDelegate {
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        if contentOffsetY == nil {
-            return
-        }
-        contentOffsetY = scrollView.contentOffset.y
-    }
-}
-#elseif canImport(AppKit)
-extension DefaultWebView.Coordinator {
-}
-
-#endif
-    

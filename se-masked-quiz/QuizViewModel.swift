@@ -4,8 +4,8 @@ import SwiftUI
 final class QuizViewModel: ObservableObject {
     @Published var currentQuiz: Quiz?
     @Published var isShowingQuiz = false
-    @Published var selectedAnswer: String?
-    @Published var isCorrect: Bool?
+    @Published var selectedAnswer: [Int: String] = [:]
+    @Published var isCorrect: [Int: Bool] = [:]
     @Published var allQuiz: [Quiz] = []
     
     private let quizRepository: QuizRepository
@@ -19,8 +19,8 @@ final class QuizViewModel: ObservableObject {
             do {
                 allQuiz = try await quizRepository.fetchQuiz(for: proposalId)
                 isShowingQuiz = true
-                selectedAnswer = nil
-                isCorrect = nil
+                selectedAnswer = [:]
+                isCorrect = [:]
             } catch {
                 print("Failed to fetch quiz:", error)
             }
@@ -33,16 +33,26 @@ final class QuizViewModel: ObservableObject {
     }
     
     func selectAnswer(_ answer: String) {
-        selectedAnswer = answer
-        if let currentQuiz = currentQuiz {
-            isCorrect = answer == currentQuiz.answer
+        if let currentQuiz = currentQuiz, isCorrect[currentQuiz.index] == nil {
+            selectedAnswer[currentQuiz.index] = answer
+            let index = currentQuiz.index
+            isCorrect[index] = answer == currentQuiz.answer
         }
     }
     
     func dismissQuiz() {
         isShowingQuiz = false
         currentQuiz = nil
-        selectedAnswer = nil
-        isCorrect = nil
     }
 } 
+
+extension QuizViewModel: @preconcurrency EnvironmentKey {
+    static let defaultValue: QuizViewModel = QuizViewModel(quizRepository: QuizRepository.defaultValue)
+}
+
+extension EnvironmentValues {
+    var quizViewModel: QuizViewModel {
+        get { self[QuizViewModel.self] }
+        set { self[QuizViewModel.self] = newValue }
+    }
+}

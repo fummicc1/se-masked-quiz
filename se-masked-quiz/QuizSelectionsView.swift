@@ -1,14 +1,10 @@
 import SwiftUI
 
 struct QuizSelectionsView: View {
-    @StateObject var viewModel: QuizViewModel
-    
-    init(viewModel: StateObject<QuizViewModel>) {
-        self._viewModel = viewModel
-    }
+    @EnvironmentObject var viewModel: QuizViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 12) {
             if let quiz = viewModel.currentQuiz {
                 Text(
                     "マスクされた単語: \(Array(repeating: "◻︎", count: quiz.answer.count).joined(separator: ""))"
@@ -26,23 +22,29 @@ struct QuizSelectionsView: View {
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
-                    .disabled(viewModel.selectedAnswer != nil)
+                    .disabled(viewModel.selectedAnswer[quiz.index] != nil)
                 }
                 
-                if let isCorrect = viewModel.isCorrect {
-                    Text(isCorrect ? "正解！" : "不正解...")
-                        .font(.title)
-                        .foregroundColor(isCorrect ? .green : .red)
-                    
-                    Button("閉じる", action: viewModel.dismissQuiz)
-                }
+                VStack {
+                    if let isCorrect = viewModel.isCorrect[quiz.index] {
+                        Text(isCorrect ? "正解！" : "不正解...")
+                            .font(.title)
+                            .foregroundColor(isCorrect ? .green : .red)
+
+                        Button("閉じる", action: viewModel.dismissQuiz)
+                            .padding(4)
+                    }
+                }.frame(height: 64)
             }
         }
         .padding()
     }
     
     private func backgroundColor(for choice: String) -> Color {
-        guard let selectedAnswer = viewModel.selectedAnswer else {
+        guard let currentQuiz = viewModel.currentQuiz else {
+            return .clear
+        }
+        guard let selectedAnswer = viewModel.selectedAnswer[currentQuiz.index] else {
             return .blue
         }
         
@@ -59,9 +61,6 @@ struct QuizSelectionsView: View {
 }
 
 #Preview {
-    QuizSelectionsView(
-        viewModel: StateObject(
-            wrappedValue: QuizViewModel(quizRepository: QuizRepository.defaultValue)
-        )
-    )
+    QuizSelectionsView()
+        .environmentObject(QuizViewModel(quizRepository: QuizRepository.defaultValue))
 }

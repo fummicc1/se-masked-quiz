@@ -10,16 +10,11 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.seRepository) var repository
     @Environment(\.quizRepository) var quizRepository
-    @StateObject private var quizViewModel: QuizViewModel
+    @Environment(\.quizViewModel) private var quizViewModel
     @State private var proposals: AsyncProposals = .idle
     @State private var modalWebUrl: URL?
     @State private var offset: Int = 0
     @State private var shouldLoadNextPage: Bool = false
-    
-    init() {
-        let viewModel = QuizViewModel(quizRepository: QuizRepository.defaultValue)
-        _quizViewModel = StateObject(wrappedValue: viewModel)
-    }
     
     var body: some View {
         GeometryReader { proxy in
@@ -53,9 +48,9 @@ struct ContentView: View {
                 .navigationTitle("Swift Evolution")
                 .navigationDestination(for: SwiftEvolution.self) { proposal in
                     ProposalQuizView(
-                        quizViewModel: _quizViewModel,
                         proposal: proposal
                     )
+                    .environmentObject(quizViewModel)
                 }
             }
             .onChange(of: shouldLoadNextPage, { oldValue, newValue in
@@ -96,8 +91,7 @@ struct ContentView: View {
                     htmlContent: .url(url),
                     onNavigate: { modalWebUrl = $0 },
                     onMaskedWordTap: { _ in
-                    },
-                    contentOffsetY: .constant(nil)
+                    }
                 )
             })
             #else

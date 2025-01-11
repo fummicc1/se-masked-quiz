@@ -10,42 +10,49 @@ import SwiftUI
 struct ProposalQuizView: View {
     
     @State private var modalWebUrl: URL?
-    @StateObject private var quizViewModel: QuizViewModel
+    @EnvironmentObject var quizViewModel: QuizViewModel
     @State private var isAppeared = false
-    @State private var contentOffsetY: CGFloat? = 0
-    
+    @State private var webView: DefaultWebView?
+
     let proposal: SwiftEvolution
     
-    init(
-        quizViewModel: StateObject<QuizViewModel>,
-        proposal: SwiftEvolution
-    ) {
-        self._quizViewModel = quizViewModel
+    init(proposal: SwiftEvolution) {
         self.proposal = proposal
     }
     
     var body: some View {
-        DefaultWebView(
-            htmlContent: .string(proposal.content),
-            onNavigate: { url in
-                modalWebUrl = url
-            },
-            onMaskedWordTap: { maskIndex in
-                print("Tapped mask index:", maskIndex)
-                quizViewModel.showQuizSelections(index: maskIndex)
-            },
-            contentOffsetY: $contentOffsetY
-        )
+        VStack {
+            if let webView {
+                webView
+            }
+        }
         .navigationTitle(proposal.title)
         .sheet(isPresented: $quizViewModel.currentQuiz.isNotNil()) {
-            QuizSelectionsView(viewModel: _quizViewModel)
+            QuizSelectionsView()
+                .presentationDetents([.medium])
         }
         .onAppear {
+            makeWebViewIfNeeded()
             if isAppeared {
                 return
             }
             isAppeared = true
             quizViewModel.startQuiz(for: proposal.proposalId)
+        }
+    }
+
+    private func makeWebViewIfNeeded() {
+        if webView == nil {
+            webView = DefaultWebView(
+                htmlContent: .string(proposal.content),
+                onNavigate: { url in
+                    modalWebUrl = url
+                },
+                onMaskedWordTap: { maskIndex in
+                    print("Tapped mask index:", maskIndex)
+                    quizViewModel.showQuizSelections(index: maskIndex)
+                }
+            )
         }
     }
 }
