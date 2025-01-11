@@ -25,12 +25,11 @@ struct ProposalQuizView: View {
             if let webView {
                 webView
             }
+            if quizViewModel.currentQuiz != nil {
+                QuizSelectionsView()
+            }
         }
         .navigationTitle(proposal.title)
-        .sheet(isPresented: $quizViewModel.currentQuiz.isNotNil()) {
-            QuizSelectionsView()
-                .presentationDetents([.medium])
-        }
         .onAppear {
             makeWebViewIfNeeded()
             if isAppeared {
