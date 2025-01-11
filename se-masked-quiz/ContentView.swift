@@ -50,9 +50,9 @@ struct ContentView: View {
                     ProposalQuizView(
                         proposal: proposal
                     )
-                    .environmentObject(quizViewModel)
                 }
             }
+            .environmentObject(quizViewModel)
             .onChange(of: shouldLoadNextPage, { oldValue, newValue in
                 if !oldValue, newValue {
                     if proposals.isLoading {
@@ -91,7 +91,9 @@ struct ContentView: View {
                     htmlContent: .url(url),
                     onNavigate: { modalWebUrl = $0 },
                     onMaskedWordTap: { _ in
-                    }
+                    },
+                    isCorrect: .constant([:]),
+                    answers: .constant([:])
                 )
             })
             #else
@@ -109,7 +111,9 @@ struct ContentView: View {
                         htmlContent: .url(url),
                         onNavigate: { modalWebUrl = $0 },
                         onMaskedWordTap: { _ in
-                        }
+                        },
+                        isCorrect: .constant([:]),
+                        answers: [:]
                     )
                     .frame(
                         width: proxy.size.width * 0.8,

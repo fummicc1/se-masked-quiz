@@ -49,6 +49,9 @@ struct DefaultWebView: UIViewRepresentable {
     let htmlContent: HTMLContent
     let onNavigate: (URL) -> Void
     let onMaskedWordTap: (Int) -> Void
+    @Binding var isCorrect: [Int: Bool]
+    @Binding var answers: [Int: String]
+    @State private var scrollContentOffsetY: CGFloat = 0
 
     func makeUIView(context: Context) -> UIViewType {
         let config = WKWebViewConfiguration()
@@ -72,24 +75,38 @@ struct DefaultWebView: UIViewRepresentable {
         
         let view = UIViewType(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
-        
+        view.scrollView.delegate = context.coordinator
+
         // デバッグ用のコンソールメッセージを有効化
         view.configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        
+
         Task {
-            await view.loadHtmlContent(htmlContent)
+            await view.loadHtmlContent(
+                htmlContent,
+                isCorrect: isCorrect,
+                answers: answers
+            )
         }
         return view
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
         Task {
-            await uiView.loadHtmlContent(htmlContent)
+            print("contentoffsetY in updateUIView: \(context.coordinator.scrollContentOffsetY)")
+            await uiView.loadHtmlContent(
+                htmlContent,
+                isCorrect: context.coordinator.isCorrect,
+                answers: context.coordinator.answers,
+                scrollContentOffsetY: context.coordinator.scrollContentOffsetY
+            )
         }
     }
     
     func makeCoordinator() -> Coordinator {
         .init(
+            scrollContentOffsetY: $scrollContentOffsetY,
+            isCorrect: $isCorrect,
+            answers: $answers,
             onNavigate: onNavigate,
             onMaskedWordTap: onMaskedWordTap
         )
@@ -98,11 +115,20 @@ struct DefaultWebView: UIViewRepresentable {
     final class Coordinator: NSObject {
         let onNavigate: (URL) -> Void
         let onMaskedWordTap: (Int) -> Void
-        
+        @Binding var scrollContentOffsetY: CGFloat
+        @Binding var isCorrect: [Int: Bool]
+        @Binding var answers: [Int: String]
+
         init(
+            scrollContentOffsetY: Binding<CGFloat>,
+            isCorrect: Binding<[Int: Bool]>,
+            answers: Binding<[Int: String]>,
             onNavigate: @escaping (URL) -> Void,
             onMaskedWordTap: @escaping (Int) -> Void
         ) {
+            self._isCorrect = isCorrect
+            self._answers = answers
+            self._scrollContentOffsetY = scrollContentOffsetY
             self.onNavigate = onNavigate
             self.onMaskedWordTap = onMaskedWordTap
         }
@@ -119,6 +145,8 @@ struct DefaultWebView: NSViewRepresentable {
     let htmlContent: HTMLContent
     let onNavigate: (URL) -> Void
     let onMaskedWordTap: (Int) -> Void
+    @Binding var isCorrect: [Int: Bool]
+    @Binding var answers: [Int: String]
 
     func makeNSView(context: Context) -> NSViewType {
         let config = WKWebViewConfiguration()
@@ -150,7 +178,11 @@ struct DefaultWebView: NSViewRepresentable {
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
         Task {
-            await nsView.loadHtmlContent(htmlContent)
+            await nsView.loadHtmlContent(
+                htmlContent,
+                isCorrect: isCorrect,
+                answers: answers
+            )
         }
     }
     
@@ -171,22 +203,46 @@ struct DefaultWebView: NSViewRepresentable {
 #endif
 
 fileprivate extension WKWebView {
-    func loadHtmlContent(_ htmlContent: HTMLContent) async {
+
+    func loadHtmlContent(
+        _ htmlContent: HTMLContent,
+        isCorrect: [Int: Bool],
+        answers: [Int: String],
+        scrollContentOffsetY: CGFloat = 0
+    ) async {
         if let url = htmlContent.url {
             load(URLRequest(url: url))
         } else {
-            loadHTMLString(await parse(html: htmlContent), baseURL: nil)
+            loadHTMLString(
+                await parse(
+                    html: htmlContent,
+                    isCorrect: isCorrect,
+                    answers: answers,
+                    scrollContentOffsetY: scrollContentOffsetY
+                ),
+                baseURL: nil
+            )
         }
     }
 }
 
 // ref: https://designcode.io/swiftui-advanced-handbook-code-highlighting-in-a-webview
-fileprivate func parse(html: HTMLContent) async -> String {
+fileprivate func parse(
+    html: HTMLContent,
+    isCorrect: [Int: Bool],
+    answers: [Int: String],
+    scrollContentOffsetY: CGFloat = 0
+) async -> String {
     let htmlContent = await html.content
     if case .url = html {
         // if the content is from URL, we don't need to add any styling.
         return htmlContent
     }
+    
+    // Convert dictionaries to JSON
+    let jsonEncoder = JSONEncoder()
+    let isCorrectJSON = (try? jsonEncoder.encode(isCorrect)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    let answersJSON = (try? jsonEncoder.encode(answers)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     
     // HTMLエスケープを解除
     let unescapedContent = htmlContent
@@ -195,7 +251,7 @@ fileprivate func parse(html: HTMLContent) async -> String {
         .replacingOccurrences(of: "&quot;", with: "\"")
         .replacingOccurrences(of: "&#39;", with: "'")
         .replacingOccurrences(of: "&amp;", with: "&")
-    
+
     let htmlStart = """
         <HTML>
         <HEAD>
@@ -242,21 +298,46 @@ fileprivate func parse(html: HTMLContent) async -> String {
                     display: inline-block;  /* インライン要素をブロック化してクリック領域を確保 */
                     pointer-events: auto;   /* クリックイベントを確実に有効化 */
                 }
+                .masked-word.correct {
+                    background-color: #4CAF50;
+                }
+                .masked-word.incorrect {
+                    background-color: #f44336;
+                }
                 .masked-word:hover {
                     background-color: #333;
                 }
+                .masked-word.correct:hover {
+                    background-color: #45a049;
+                }
+                .masked-word.incorrect:hover {
+                    background-color: #da190b;
+                }
             </style>
             <script>
+                let currentIndex = 0;
+                const isCorrectMap = \(isCorrectJSON);
+                const answersMap = \(answersJSON);
+                const initialScrollY = \(scrollContentOffsetY);
+                
                 function wrapMaskedWords() {
                     const text = document.body.innerHTML;
                     const pattern = /(◻︎)+/g;
-                    let maskIndex = 0;
                     const wrappedText = text.replace(pattern, function(match) {
-                        return `<span class="masked-word" data-mask-index="${maskIndex++}">${match}</span>`;
+                        const index = currentIndex++;
+                        const isAnswered = isCorrectMap.hasOwnProperty(index.toString());
+                        const isCorrect = isAnswered ? isCorrectMap[index.toString()] : false;
+                        const answer = isAnswered ? answersMap[index.toString()] : '';
+                        let message = isAnswered ? answer : match;
+                        const className = isAnswered ? (isCorrect ? 'masked-word correct' : 'masked-word incorrect') : 'masked-word';
+                        return `<span class="${className}" data-mask-index="${index}">${message}</span>`;
                     });
                     document.body.innerHTML = wrappedText;
                     
-                    console.log('Total masked groups:', maskIndex);
+                    console.log('Total masked groups:', currentIndex);
+                    
+                    // Set initial scroll position after content is loaded
+                    window.scrollTo(0, initialScrollY);
                 }
                 window.addEventListener('load', wrapMaskedWords);
             </script>
@@ -310,3 +391,13 @@ extension DefaultWebView.Coordinator: WKScriptMessageHandler {
         }
     }
 }
+
+#if canImport(UIKit)
+extension DefaultWebView.Coordinator: UIScrollViewDelegate {
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        print("scrollView.contentOffset.y: \(scrollView.contentOffset.y)")
+        scrollContentOffsetY = scrollView.contentOffset.y
+    }
+
+}
+#endif

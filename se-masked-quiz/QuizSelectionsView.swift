@@ -26,15 +26,17 @@ struct QuizSelectionsView: View {
                 }
                 
                 VStack {
-                    if let isCorrect = viewModel.isCorrect[quiz.index] {
-                        Text(isCorrect ? "正解！" : "不正解...")
-                            .font(.title)
-                            .foregroundColor(isCorrect ? .green : .red)
-
-                        Button("閉じる", action: viewModel.dismissQuiz)
-                            .padding(4)
+                    VStack {
+                        if let isCorrect = viewModel.isCorrect[quiz.index] {
+                            Text(isCorrect ? "正解！" : "不正解...")
+                                .font(.title)
+                                .foregroundColor(isCorrect ? .green : .red)
+                        }
                     }
-                }.frame(height: 64)
+                    .frame(height: 32)
+                    Button("閉じる", action: viewModel.dismissQuiz)
+                        .padding(4)
+                }
             }
         }
         .padding()

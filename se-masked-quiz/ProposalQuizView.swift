@@ -12,7 +12,6 @@ struct ProposalQuizView: View {
     @State private var modalWebUrl: URL?
     @EnvironmentObject var quizViewModel: QuizViewModel
     @State private var isAppeared = false
-    @State private var webView: DefaultWebView?
 
     let proposal: SwiftEvolution
     
@@ -22,27 +21,7 @@ struct ProposalQuizView: View {
     
     var body: some View {
         VStack {
-            if let webView {
-                webView
-            }
-            if quizViewModel.currentQuiz != nil {
-                QuizSelectionsView()
-            }
-        }
-        .navigationTitle(proposal.title)
-        .onAppear {
-            makeWebViewIfNeeded()
-            if isAppeared {
-                return
-            }
-            isAppeared = true
-            quizViewModel.startQuiz(for: proposal.proposalId)
-        }
-    }
-
-    private func makeWebViewIfNeeded() {
-        if webView == nil {
-            webView = DefaultWebView(
+            DefaultWebView(
                 htmlContent: .string(proposal.content),
                 onNavigate: { url in
                     modalWebUrl = url
@@ -50,8 +29,21 @@ struct ProposalQuizView: View {
                 onMaskedWordTap: { maskIndex in
                     print("Tapped mask index:", maskIndex)
                     quizViewModel.showQuizSelections(index: maskIndex)
-                }
+                },
+                isCorrect: $quizViewModel.isCorrect,
+                answers: $quizViewModel.answers
             )
+            if quizViewModel.currentQuiz != nil {
+                QuizSelectionsView()
+            }
+        }
+        .navigationTitle(proposal.title)
+        .onAppear {
+            if isAppeared {
+                return
+            }
+            isAppeared = true
+            quizViewModel.startQuiz(for: proposal.proposalId)
         }
     }
 }

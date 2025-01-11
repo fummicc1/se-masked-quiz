@@ -7,7 +7,8 @@ final class QuizViewModel: ObservableObject {
     @Published var selectedAnswer: [Int: String] = [:]
     @Published var isCorrect: [Int: Bool] = [:]
     @Published var allQuiz: [Quiz] = []
-    
+    @Published var answers: [Int: String] = [:]
+
     private let quizRepository: QuizRepository
     
     init(quizRepository: QuizRepository) {
@@ -21,6 +22,7 @@ final class QuizViewModel: ObservableObject {
                 isShowingQuiz = true
                 selectedAnswer = [:]
                 isCorrect = [:]
+                answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.index, $0.answer) })
             } catch {
                 print("Failed to fetch quiz:", error)
             }
