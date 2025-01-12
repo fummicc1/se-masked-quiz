@@ -24,6 +24,9 @@ protocol QuizRepository: Actor, EnvironmentKey {
 
   /// Fetch quiz for a specific proposal
   func fetchQuiz(for proposalId: String) async throws -> [Quiz]
+
+  /// Reset score for a specific proposal
+  func resetScore(for proposalId: String) async
 }
 
 // MARK: - Repository Implementation
@@ -119,6 +122,15 @@ actor QuizRepositoryImpl: QuizRepository {
         answer: answer.answer,
         choices: generateRandomChoices(excluding: answer.answer)
       )
+    }
+  }
+
+  func resetScore(for proposalId: String) async {
+    var scores = await getAllScores()
+    scores.removeValue(forKey: proposalId)
+    
+    if let encoded = try? JSONEncoder().encode(scores) {
+      userDefaults.set(encoded, forKey: Self.scoreKey)
     }
   }
 

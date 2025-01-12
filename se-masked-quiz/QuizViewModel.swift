@@ -9,6 +9,7 @@ final class QuizViewModel: ObservableObject {
   @Published var allQuiz: [Quiz] = []
   @Published var answers: [Int: String] = [:]
   @Published var currentScore: ProposalScore?
+  @Published var isShowingResetAlert = false
 
   private let quizRepository: any QuizRepository
 
@@ -79,6 +80,13 @@ final class QuizViewModel: ObservableObject {
     Task {
       await quizRepository.saveScore(newScore)
     }
+  }
+
+  func resetQuiz(for proposalId: String) async {
+    await quizRepository.resetScore(for: proposalId)
+    selectedAnswer = [:]
+    isCorrect = [:]
+    currentScore = nil
   }
 }
 

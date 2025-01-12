@@ -28,6 +28,13 @@ struct ProposalQuizView: View {
           Text("(\(currentScore.correctCount)/\(currentScore.totalCount)問正解)")
             .font(.subheadline)
             .foregroundColor(.secondary)
+          Spacer()
+          Button(action: {
+            quizViewModel.isShowingResetAlert = true
+          }) {
+            Image(systemName: "arrow.counterclockwise")
+              .foregroundColor(.red)
+          }
         }
         .padding()
       }
@@ -55,6 +62,17 @@ struct ProposalQuizView: View {
       }
       isAppeared = true
       quizViewModel.startQuiz(for: proposal.proposalId)
+    }
+    .alert("クイズをリセット", isPresented: $quizViewModel.isShowingResetAlert) {
+      Button("キャンセル", role: .cancel) {}
+      Button("リセット", role: .destructive) {
+        Task {
+          await quizViewModel.resetQuiz(for: proposal.proposalId)
+          quizViewModel.startQuiz(for: proposal.proposalId)
+        }
+      }
+    } message: {
+      Text("このプロポーザルのクイズの進捗をリセットしますか？\nこの操作は取り消せません。")
     }
   }
 }
