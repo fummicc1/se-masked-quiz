@@ -1,0 +1,67 @@
+# SE Masked Quiz Coding Rules
+
+## Architecture Rules
+- Use layered architecture (View -> ViewModel -> Repository)
+- Repository layer should be protocol-based for better testability
+- Use dependency injection for better testability and flexibility
+- Keep business logic in ViewModels, data access in Repositories
+
+## File Organization
+- Group files by feature or layer
+- Keep related files together
+- Use MARK comments to organize code sections
+
+## Naming Conventions
+- Use clear, descriptive names
+- ViewModels should end with 'ViewModel'
+- Repositories should end with 'Repository'
+- Protocols should describe their purpose (e.g., QuizRepositoryProtocol)
+
+## SwiftUI Best Practices
+- Keep views small and focused
+- Use @Published for observable properties
+- Use @MainActor for ViewModels
+- Extract reusable views into components
+- Use environment objects for dependency injection
+
+## Async/Await
+- Use modern concurrency with async/await
+- Mark asynchronous functions appropriately
+- Use actors for thread-safe repositories
+- Handle errors appropriately with do-catch
+
+## Data Management
+- Use UserDefaults only through Repository layer
+- Keep data models Codable for easy serialization
+- Use proper error handling for data operations
+- Cache data when appropriate
+
+## Testing
+- Write unit tests for ViewModels and Repositories
+- Use protocol-based mocks for testing
+- Test error cases and edge conditions
+- Keep test files organized and well-named
+
+## Documentation
+- Document public interfaces
+- Use MARK comments to organize code
+- Add comments for complex logic
+- Keep README up to date
+
+## Code Style
+- Follow Swift style guidelines
+- Use consistent indentation
+- Keep functions focused and small
+- Use proper access control (private, internal, public)
+
+## Error Handling
+- Define custom errors when needed
+- Handle errors at appropriate layers
+- Provide meaningful error messages
+- Use proper error propagation
+
+## Performance
+- Avoid unnecessary computations
+- Use appropriate data structures
+- Cache expensive operations
+- Profile and optimize when needed 

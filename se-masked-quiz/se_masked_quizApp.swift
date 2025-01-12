@@ -9,9 +9,9 @@ import SwiftUI
 
 @main
 struct se_masked_quizApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+  var body: some Scene {
+    WindowGroup {
+      ContentView()
     }
+  }
 }
