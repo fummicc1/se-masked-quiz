@@ -59,5 +59,5 @@ struct QuizSelectionsView: View {
 
 #Preview {
     QuizSelectionsView()
-        .environmentObject(QuizViewModel(quizRepository: QuizRepository.defaultValue))
+        .environmentObject(QuizViewModel(quizRepository: QuizRepositoryImpl.defaultValue))
 }

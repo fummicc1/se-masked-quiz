@@ -1,3 +1,5 @@
+import Foundation
+
 struct Quiz: Codable, Identifiable {
     var id: String
     var proposalId: String
@@ -13,5 +15,17 @@ struct Quiz: Codable, Identifiable {
         self.answer = answer
         self.choices = choices
         allChoices = (choices + [answer]).shuffled()
+    }
+}
+
+struct ProposalScore: Codable {
+    let proposalId: String
+    let correctCount: Int
+    let totalCount: Int
+    let timestamp: Date
+    
+    var percentage: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(correctCount) / Double(totalCount) * 100
     }
 }

@@ -8,10 +8,11 @@ final class QuizViewModel: ObservableObject {
     @Published var isCorrect: [Int: Bool] = [:]
     @Published var allQuiz: [Quiz] = []
     @Published var answers: [Int: String] = [:]
-
-    private let quizRepository: QuizRepository
+    @Published var currentScore: ProposalScore?
     
-    init(quizRepository: QuizRepository) {
+    private let quizRepository: any QuizRepository
+
+    init(quizRepository: any QuizRepository) {
         self.quizRepository = quizRepository
     }
     
@@ -23,6 +24,10 @@ final class QuizViewModel: ObservableObject {
                 selectedAnswer = [:]
                 isCorrect = [:]
                 answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.index, $0.answer) })
+                // Load existing score
+                if let existingScore = await quizRepository.getScore(for: proposalId) {
+                    currentScore = existingScore
+                }
             } catch {
                 print("Failed to fetch quiz:", error)
             }
@@ -39,6 +44,7 @@ final class QuizViewModel: ObservableObject {
             selectedAnswer[currentQuiz.index] = answer
             let index = currentQuiz.index
             isCorrect[index] = answer == currentQuiz.answer
+            updateScore()
         }
     }
     
@@ -46,10 +52,29 @@ final class QuizViewModel: ObservableObject {
         isShowingQuiz = false
         currentQuiz = nil
     }
+    
+    private func updateScore() {
+        guard let proposalId = currentQuiz?.proposalId else { return }
+        
+        let correctCount = isCorrect.values.filter { $0 }.count
+        let totalCount = allQuiz.count
+        
+        let newScore = ProposalScore(
+            proposalId: proposalId,
+            correctCount: correctCount,
+            totalCount: totalCount,
+            timestamp: Date()
+        )
+        
+        currentScore = newScore
+        Task {
+            await quizRepository.saveScore(newScore)
+        }
+    }
 } 
 
 extension QuizViewModel: @preconcurrency EnvironmentKey {
-    static let defaultValue: QuizViewModel = QuizViewModel(quizRepository: QuizRepository.defaultValue)
+    static let defaultValue: QuizViewModel = QuizViewModel(quizRepository: QuizRepositoryImpl.defaultValue)
 }
 
 extension EnvironmentValues {

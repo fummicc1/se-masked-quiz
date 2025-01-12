@@ -20,7 +20,18 @@ struct ProposalQuizView: View {
     }
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
+            if let currentScore = quizViewModel.currentScore {
+                HStack {
+                    Text("現在のスコア: \(Int(currentScore.percentage))%")
+                        .font(.headline)
+                    Text("(\(currentScore.correctCount)/\(currentScore.totalCount)問正解)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+            }
+            
             DefaultWebView(
                 htmlContent: .string(proposal.content),
                 onNavigate: { url in
