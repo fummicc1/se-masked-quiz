@@ -8,15 +8,15 @@
 import SwiftUI
 
 struct MarkdownText: View {
-    let text: String
+  let text: String
 
-    init(_ text: String) {
-        self.text = text
-    }
+  init(_ text: String) {
+    self.text = text
+  }
 
-    var body: some View {
-        Text(
-            try! AttributedString(markdown: text.data(using: .utf8)!)
-        )
-    }
+  var body: some View {
+    Text(
+      try! AttributedString(markdown: text.data(using: .utf8)!)
+    )
+  }
 }
