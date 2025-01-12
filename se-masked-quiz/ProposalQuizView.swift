@@ -56,6 +56,7 @@ struct ProposalQuizView: View {
       }
     }
     .navigationTitle(proposal.title)
+    .navigationBarTitleDisplayMode(.inline)
     .onAppear {
       if isAppeared {
         return
