@@ -143,6 +143,76 @@ final class QuizViewModelTests: XCTestCase {
         XCTAssertNil(sut.currentQuiz)
         XCTAssertFalse(sut.isShowingQuiz)
     }
+    
+    func testResetQuiz_ClearsAllStateAndScore() async throws {
+        // Given
+        let proposalId = "0001"
+        let quiz = Quiz(id: "1", proposalId: proposalId, index: 0, answer: "Swift", choices: ["Java", "Kotlin", "Rust"])
+        await mockRepository.setQuizzes([quiz], for: proposalId)
+        
+        // Set initial state
+        sut.startQuiz(for: proposalId)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        
+        sut.showQuizSelections(index: 0)
+        sut.selectAnswer("Swift")
+        
+        // Verify initial state
+        XCTAssertNotNil(sut.currentScore)
+        XCTAssertFalse(sut.selectedAnswer.isEmpty)
+        XCTAssertFalse(sut.isCorrect.isEmpty)
+        
+        // When
+        await Task.yield()
+        await sut.resetQuiz(for: proposalId)
+        
+        // Then
+        XCTAssertNil(sut.currentScore)
+        XCTAssertTrue(sut.selectedAnswer.isEmpty)
+        XCTAssertTrue(sut.isCorrect.isEmpty)
+        
+        // Verify score was removed from repository
+        let savedScore = await mockRepository.getScore(for: proposalId)
+        XCTAssertNil(savedScore)
+    }
+    
+    func testResetQuiz_WhenMultipleScoresExist_OnlyResetsTargetScore() async throws {
+        // Given
+        let proposalId1 = "0001"
+        let proposalId2 = "0002"
+        
+        // Set up first quiz
+        let quiz1 = Quiz(id: "1", proposalId: proposalId1, index: 0, answer: "Swift", choices: ["Java", "Kotlin", "Rust"])
+        await mockRepository.setQuizzes([quiz1], for: proposalId1)
+        
+        // Set up second quiz
+        let quiz2 = Quiz(id: "2", proposalId: proposalId2, index: 0, answer: "async", choices: ["sync", "await", "concurrent"])
+        await mockRepository.setQuizzes([quiz2], for: proposalId2)
+        
+        // Save scores for both quizzes
+        let score1 = ProposalScore(
+            proposalId: proposalId1,
+            questionResults: [QuestionResult(index: 0, isCorrect: true, answer: "Swift", userAnswer: "Swift")]
+        )
+        let score2 = ProposalScore(
+            proposalId: proposalId2,
+            questionResults: [QuestionResult(index: 0, isCorrect: true, answer: "async", userAnswer: "async")]
+        )
+        
+        await mockRepository.saveScore(score1)
+        await mockRepository.saveScore(score2)
+        
+        // When
+        await sut.resetQuiz(for: proposalId1)
+        
+        // Then
+        let remainingScore = await mockRepository.getScore(for: proposalId2)
+        let resetScore = await mockRepository.getScore(for: proposalId1)
+        
+        XCTAssertNil(resetScore, "Score for proposalId1 should be reset")
+        XCTAssertNotNil(remainingScore, "Score for proposalId2 should remain")
+        XCTAssertEqual(remainingScore?.proposalId, proposalId2)
+    }
 } 
 
 fileprivate func updateQuizRepository<R: QuizRepository>(of repository: R, call: (isolated R) async throws -> Void) async throws {

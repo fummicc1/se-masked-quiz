@@ -28,7 +28,11 @@ actor MockQuizRepository: QuizRepository {
         }
         return quizzes[proposalId] ?? []
     }
-    
+
+    func resetScore(for proposalId: String) async {
+        savedScores[proposalId] = nil
+    }
+
     // Test Helper Methods
     func setQuizzes(_ quizzes: [Quiz], for proposalId: String) {
         self.quizzes[proposalId] = quizzes
@@ -39,4 +43,4 @@ actor MockQuizRepository: QuizRepository {
         quizzes = [:]
         shouldThrowError = false
     }
-} 
+}

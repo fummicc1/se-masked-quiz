@@ -114,4 +114,79 @@ final class QuizRepositoryTests: XCTestCase {
         XCTAssertEqual(retrievedScore?.questionResults[1].isCorrect, true)
         XCTAssertEqual(retrievedScore?.questionResults[1].userAnswer, "async")
     }
+    
+    func testResetScore_RemovesScoreForProposal() async throws {
+        // Given
+        let questionResults = [
+            QuestionResult(index: 0, isCorrect: true, answer: "Swift", userAnswer: "Swift"),
+            QuestionResult(index: 1, isCorrect: false, answer: "async", userAnswer: "sync")
+        ]
+        let score = ProposalScore(proposalId: "0001", questionResults: questionResults)
+        await sut.saveScore(score)
+        
+        // Verify initial state
+        let initialScore = await sut.getScore(for: "0001")
+        XCTAssertNotNil(initialScore)
+        
+        // When
+        await sut.resetScore(for: "0001")
+        
+        // Then
+        let resetScore = await sut.getScore(for: "0001")
+        XCTAssertNil(resetScore)
+    }
+    
+    func testResetScore_WhenMultipleScoresExist_OnlyRemovesTargetScore() async throws {
+        // Given
+        let score1 = ProposalScore(
+            proposalId: "0001",
+            questionResults: [
+                QuestionResult(index: 0, isCorrect: true, answer: "Swift", userAnswer: "Swift")
+            ]
+        )
+        
+        let score2 = ProposalScore(
+            proposalId: "0002",
+            questionResults: [
+                QuestionResult(index: 0, isCorrect: true, answer: "async", userAnswer: "async")
+            ]
+        )
+        
+        // Save both scores
+        await sut.saveScore(score1)
+        await sut.saveScore(score2)
+        
+        // Verify initial state
+        let initialScores = await sut.getAllScores()
+        XCTAssertEqual(initialScores.count, 2)
+        
+        // When
+        await sut.resetScore(for: "0001")
+        
+        // Then
+        let finalScores = await sut.getAllScores()
+        XCTAssertEqual(finalScores.count, 1)
+        XCTAssertNil(finalScores["0001"])
+        XCTAssertNotNil(finalScores["0002"])
+        XCTAssertEqual(finalScores["0002"]?.questionResults.first?.answer, "async")
+    }
+    
+    func testResetScore_WhenScoreDoesNotExist_DoesNothing() async throws {
+        // Given
+        let score = ProposalScore(
+            proposalId: "0001",
+            questionResults: [
+                QuestionResult(index: 0, isCorrect: true, answer: "Swift", userAnswer: "Swift")
+            ]
+        )
+        await sut.saveScore(score)
+        
+        // When
+        await sut.resetScore(for: "non-existent")
+        
+        // Then
+        let scores = await sut.getAllScores()
+        XCTAssertEqual(scores.count, 1)
+        XCTAssertNotNil(scores["0001"])
+    }
 } 
