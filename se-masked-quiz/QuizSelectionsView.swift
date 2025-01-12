@@ -5,12 +5,7 @@ struct QuizSelectionsView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            if let quiz = viewModel.currentQuiz {
-                Text(
-                    "マスクされた単語: \(Array(repeating: "◻︎", count: quiz.answer.count).joined(separator: ""))"
-                )
-                .font(.headline)
-                
+            if let quiz = viewModel.currentQuiz {                
                 ForEach(quiz.allChoices, id: \.self) { choice in
                     Button(action: {
                         viewModel.selectAnswer(choice)
