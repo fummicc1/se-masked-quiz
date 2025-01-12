@@ -6,24 +6,24 @@
 //
 
 #if CI
-enum Env {
+  enum Env {
     static var microCmsApiKey: String {
-        ""
+      ""
     }
 
     static var microCmsApiEndpoint: String {
-        ""
+      ""
     }
     static var cloudflareR2Endpoint: String {
-        ""
+      ""
     }
 
     static var cloudflareR2AccessKey: String {
-        ""
+      ""
     }
 
     static var cloudflareR2SecretKey: String {
-        ""
+      ""
     }
-}
+  }
 #endif
