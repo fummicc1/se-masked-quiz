@@ -10,7 +10,6 @@ import SwiftUI
 struct ContentView: View {
   @Environment(\.seRepository) var repository
   @Environment(\.quizRepository) var quizRepository
-  @Environment(\.quizViewModel) private var quizViewModel
   @State private var proposals: AsyncProposals = .idle
   @State private var modalWebUrl: URL?
   @State private var offset: Int = 0
@@ -48,11 +47,11 @@ struct ContentView: View {
         .navigationTitle("Swift Evolution")
         .navigationDestination(for: SwiftEvolution.self) { proposal in
           ProposalQuizView(
-            proposal: proposal
+            proposal: proposal,
+            quizRepository: quizRepository
           )
         }
       }
-      .environmentObject(quizViewModel)
       .onChange(
         of: shouldLoadNextPage,
         { oldValue, newValue in

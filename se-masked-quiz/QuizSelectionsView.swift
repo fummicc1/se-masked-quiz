@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct QuizSelectionsView: View {
-  @EnvironmentObject var viewModel: QuizViewModel
+    @ObservedObject var viewModel: QuizViewModel
 
   var body: some View {
     VStack(spacing: 12) {
@@ -58,6 +58,15 @@ struct QuizSelectionsView: View {
 }
 
 #Preview {
-  QuizSelectionsView()
-    .environmentObject(QuizViewModel(quizRepository: QuizRepositoryImpl.defaultValue))
+    QuizSelectionsView(
+        viewModel: .init(
+            proposalId: "",
+            quizRepository: QuizRepositoryImpl.init(
+                cloudflareR2Endpoint: "",
+                r2AccessKey: "",
+                r2SecretKey: ""
+            )
+        )
+        
+    )
 }
