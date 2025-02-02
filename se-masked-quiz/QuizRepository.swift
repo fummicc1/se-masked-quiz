@@ -128,7 +128,7 @@ actor QuizRepositoryImpl: QuizRepository {
   func resetScore(for proposalId: String) async {
     var scores = await getAllScores()
     scores.removeValue(forKey: proposalId)
-    
+
     if let encoded = try? JSONEncoder().encode(scores) {
       userDefaults.set(encoded, forKey: Self.scoreKey)
     }

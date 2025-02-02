@@ -12,32 +12,32 @@ final class QuizViewModel: ObservableObject {
   @Published var isShowingResetAlert = false
 
   private let quizRepository: any QuizRepository
-    private let proposalId: String
+  private let proposalId: String
 
-    init(proposalId: String, quizRepository: any QuizRepository) {
+  init(proposalId: String, quizRepository: any QuizRepository) {
     self.quizRepository = quizRepository
-        self.proposalId = proposalId
+    self.proposalId = proposalId
   }
 
-    func configure() async {
-        do {
-            allQuiz = try await quizRepository.fetchQuiz(for: proposalId)
-            isShowingQuiz = true
-            selectedAnswer = [:]
-            isCorrect = [:]
-            answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.index, $0.answer) })
-            // Load existing score
-            if let existingScore = await quizRepository.getScore(for: proposalId) {
-                currentScore = existingScore
-                // Restore previous answers and results
-                for result in existingScore.questionResults {
-                    selectedAnswer[result.index] = result.userAnswer
-                    isCorrect[result.index] = result.isCorrect
-                }
-            }
-        } catch {
-            print("Failed to fetch quiz:", error)
+  func configure() async {
+    do {
+      allQuiz = try await quizRepository.fetchQuiz(for: proposalId)
+      isShowingQuiz = true
+      selectedAnswer = [:]
+      isCorrect = [:]
+      answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.index, $0.answer) })
+      // Load existing score
+      if let existingScore = await quizRepository.getScore(for: proposalId) {
+        currentScore = existingScore
+        // Restore previous answers and results
+        for result in existingScore.questionResults {
+          selectedAnswer[result.index] = result.userAnswer
+          isCorrect[result.index] = result.isCorrect
         }
+      }
+    } catch {
+      print("Failed to fetch quiz:", error)
+    }
   }
 
   func showQuizSelections(index: Int) {

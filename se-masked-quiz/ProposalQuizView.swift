@@ -10,19 +10,19 @@ import SwiftUI
 struct ProposalQuizView: View {
 
   @State private var modalWebUrl: URL?
-    @StateObject var quizViewModel: QuizViewModel
+  @StateObject var quizViewModel: QuizViewModel
   @State private var isAppeared = false
 
   let proposal: SwiftEvolution
 
-    init(proposal: SwiftEvolution, quizRepository: any QuizRepository) {
+  init(proposal: SwiftEvolution, quizRepository: any QuizRepository) {
     self.proposal = proposal
-      _quizViewModel = StateObject(
-        wrappedValue: QuizViewModel(
-            proposalId: proposal.proposalId,
-            quizRepository: quizRepository
-        )
+    _quizViewModel = StateObject(
+      wrappedValue: QuizViewModel(
+        proposalId: proposal.proposalId,
+        quizRepository: quizRepository
       )
+    )
   }
 
   var body: some View {
@@ -58,20 +58,20 @@ struct ProposalQuizView: View {
         answers: $quizViewModel.answers
       )
       if quizViewModel.currentQuiz != nil {
-          QuizSelectionsView(viewModel: quizViewModel)
+        QuizSelectionsView(viewModel: quizViewModel)
       }
     }
     .navigationTitle(proposal.title)
     .navigationBarTitleDisplayMode(.inline)
     .task {
-        await quizViewModel.configure()
+      await quizViewModel.configure()
     }
     .alert("クイズをリセット", isPresented: $quizViewModel.isShowingResetAlert) {
       Button("キャンセル", role: .cancel) {}
       Button("リセット", role: .destructive) {
         Task {
           await quizViewModel.resetQuiz(for: proposal.proposalId)
-            await quizViewModel.configure()
+          await quizViewModel.configure()
         }
       }
     } message: {
