@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  ProposalListScreen.swift
 //  se-masked-quiz
 //
 //  Created by Fumiya Tanaka on 2025/01/01.
@@ -7,13 +7,14 @@
 
 import SwiftUI
 
-struct ContentView: View {
+struct ProposalListScreen: View {
   @Environment(\.seRepository) var repository
   @Environment(\.quizRepository) var quizRepository
   @State private var proposals: AsyncProposals = .idle
   @State private var modalWebUrl: URL?
   @State private var offset: Int = 0
   @State private var shouldLoadNextPage: Bool = false
+  @State private var showsSetting: Bool = false
 
   var body: some View {
     GeometryReader { proxy in
@@ -51,6 +52,18 @@ struct ContentView: View {
             quizRepository: quizRepository
           )
         }
+        .toolbar {
+          ToolbarItem(placement: .topBarLeading) {
+            Button {
+              showsSetting = true
+            } label: {
+              Image(systemName: "gearshape")
+            }
+          }
+        }
+      }
+      .sheet(isPresented: $showsSetting) {
+        SettingScreen()
       }
       .onChange(
         of: shouldLoadNextPage,
@@ -151,5 +164,5 @@ extension Binding {
 }
 
 #Preview {
-  ContentView()
+  ProposalListScreen()
 }
