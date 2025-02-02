@@ -11,7 +11,7 @@ import SwiftUI
 struct se_masked_quizApp: App {
   var body: some Scene {
     WindowGroup {
-        ProposalListScreen()
+      ProposalListScreen()
     }
   }
 }
