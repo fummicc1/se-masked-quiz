@@ -244,7 +244,6 @@ private func parse(
                     color: #e06c75;
                 }
                 .masked-word {
-                    background-color: #000;
                     color: #fff;
                     padding: 2px 6px;
                     border-radius: 4px;
@@ -277,7 +276,7 @@ private func parse(
                 
                 function wrapMaskedWords() {
                     const text = document.body.innerHTML;
-                    const pattern = /(◻︎)+/g;
+                    const pattern = /(＿)+/g;
                     const wrappedText = text.replace(pattern, function(match) {
                         const index = currentIndex++;
                         const isAnswered = isCorrectMap.hasOwnProperty(index.toString());
