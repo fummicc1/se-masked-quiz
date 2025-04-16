@@ -10,6 +10,7 @@ final class QuizViewModel: ObservableObject {
   @Published var answers: [Int: String] = [:]
   @Published var currentScore: ProposalScore?
   @Published var isShowingResetAlert = false
+  @Published var isConfigured: Bool = false
 
   private let quizRepository: any QuizRepository
   private let proposalId: String
@@ -35,12 +36,14 @@ final class QuizViewModel: ObservableObject {
           isCorrect[result.index] = result.isCorrect
         }
       }
+      isConfigured = true
     } catch {
       print("Failed to fetch quiz:", error)
     }
   }
 
   func showQuizSelections(index: Int) {
+    guard isConfigured else { return }
     currentQuiz = allQuiz[index]
     isShowingQuiz = true
   }
