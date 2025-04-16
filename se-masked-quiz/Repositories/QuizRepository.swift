@@ -37,14 +37,12 @@ actor QuizRepositoryImpl: QuizRepository {
   private let userDefaults: UserDefaults
 
   private static let scoreKey = "proposal_scores"
-  private var similarityMap: [String: [String]]
 
   init(
     cloudflareR2Endpoint: String,
     r2AccessKey: String,
     r2SecretKey: String,
-    userDefaults: UserDefaults = .standard,
-    similarityMap: [String: [String]] = [:]
+    userDefaults: UserDefaults = .standard
   ) {
     let identity = AWSCredentialIdentity(
       accessKey: r2AccessKey,
@@ -59,16 +57,6 @@ actor QuizRepositoryImpl: QuizRepository {
       )
     )
     self.userDefaults = userDefaults
-    self.similarityMap = similarityMap
-    Task {
-      do {
-        try await update { s in
-          s.similarityMap = try await fetchSimilarityMap()
-        }
-      } catch {
-        print("Failed to fetch frequent words or similarity map: \(error)")
-      }
-    }
   }
 
   // MARK: - Score Management
@@ -113,15 +101,13 @@ actor QuizRepositoryImpl: QuizRepository {
     // Sort answers by index to ensure correct order
     let sortedAnswers = proposalAnswers.sorted { $0.index < $1.index }
 
-    self.similarityMap = try await fetchSimilarityMap()
-
     return sortedAnswers.map { answer in
       return Quiz(
         id: UUID().uuidString,
         proposalId: proposalId,
         index: answer.index,
         answer: answer.answer,
-        choices: similarityMap[answer.answer]?.shuffled().prefix(3).map(\.self) ?? []
+        choices: answer.options
       )
     }
   }
@@ -133,21 +119,6 @@ actor QuizRepositoryImpl: QuizRepository {
     if let encoded = try? JSONEncoder().encode(scores) {
       userDefaults.set(encoded, forKey: Self.scoreKey)
     }
-  }
-
-  /// - Returns: A dictionary mapping word lengths to arrays of words which are similar to the answer
-  func fetchSimilarityMap() async throws -> [String: [String]] {
-    guard similarityMap.isEmpty else {
-      return similarityMap
-    }
-    let input = GetObjectInput(bucket: quizBucket, key: "similarity_map.json")
-    let contents = try await s3Client.getObject(input: input)
-    let binary = try? await contents.body?.readData()
-    guard let binary else {
-      throw QuizError.failedToFetchSimilarityMap
-    }
-    let similarityMap = try JSONDecoder().decode([String: [String]].self, from: binary)
-    return similarityMap
   }
 
   // MARK: - Private Helpers
@@ -166,6 +137,7 @@ extension QuizRepositoryImpl {
     struct QuizAnswer: Codable {
       var index: Int
       var answer: String
+      var options: [String]
     }
 
     init(from decoder: any Decoder) throws {

@@ -244,7 +244,7 @@ private func parse(
                     color: #e06c75;
                 }
                 .masked-word {
-                    color: #fff;
+                    color: #000;
                     padding: 2px 6px;
                     border-radius: 4px;
                     cursor: pointer;
@@ -253,13 +253,16 @@ private func parse(
                     pointer-events: auto;   /* クリックイベントを確実に有効化 */
                 }
                 .masked-word.correct {
+                    color: #fff;
                     background-color: #4CAF50;
                 }
                 .masked-word.incorrect {
+                    color: #fff;
                     background-color: #f44336;
                 }
                 .masked-word:hover {
-                    background-color: #333;
+                    color: #000;
+                    background-color: #ccc;
                 }
                 .masked-word.correct:hover {
                     background-color: #45a049;
