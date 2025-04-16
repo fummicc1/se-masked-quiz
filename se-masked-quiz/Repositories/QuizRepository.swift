@@ -38,12 +38,14 @@ actor QuizRepositoryImpl: QuizRepository {
   private let userDefaults: UserDefaults
 
   private static let scoreKey = "proposal_scores"
+  private var similarityMap: [String: [String]]
 
   init(
     cloudflareR2Endpoint: String,
     r2AccessKey: String,
     r2SecretKey: String,
-    userDefaults: UserDefaults = .standard
+    userDefaults: UserDefaults = .standard,
+    similarityMap: [String: [String]] = [:]
   ) {
     let identity = AWSCredentialIdentity(
       accessKey: r2AccessKey,
@@ -58,16 +60,15 @@ actor QuizRepositoryImpl: QuizRepository {
       )
     )
     self.userDefaults = userDefaults
+    self.similarityMap = similarityMap
     Task {
       do {
-        func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
-          try await run(self)
-        }
         try await update { s in
           s.wordCandidates = try await fetchFrequentWords()
+          s.similarityMap = try await fetchSimilarityMap()
         }
       } catch {
-        print("Failed to fetch frequent words: \(error)")
+        print("Failed to fetch frequent words or similarity map: \(error)")
       }
     }
   }
@@ -120,7 +121,7 @@ actor QuizRepositoryImpl: QuizRepository {
         proposalId: proposalId,
         index: answer.index,
         answer: answer.answer,
-        choices: generateRandomChoices(excluding: answer.answer)
+        choices: similarityMap[answer.answer] ?? []
       )
     }
   }
@@ -134,11 +135,22 @@ actor QuizRepositoryImpl: QuizRepository {
     }
   }
 
+  /// - Returns: A dictionary mapping word lengths to arrays of words which are similar to the answer
+  func fetchSimilarityMap() async throws -> [String: [String]] {
+    let input = GetObjectInput(bucket: quizBucket, key: "similarity_map.json")
+    let contents = try await s3Client.getObject(input: input)
+    let binary = try? await contents.body?.readData()
+    guard let binary else {
+      throw QuizError.failedToFetchSimilarityMap
+    }
+    let similarityMap = try JSONDecoder().decode([String: [String]].self, from: binary)
+    return similarityMap
+  }
+
   // MARK: - Private Helpers
 
-  private func generateRandomChoices(excluding answer: String) -> [String] {
-    let candidates = wordCandidates[answer.count] ?? []
-    return Array(candidates.shuffled().prefix(3))
+  private func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
+    try await run(self)
   }
 
   private func fetchFrequentWords() async throws -> [Int: [String]] {
@@ -180,6 +192,7 @@ extension QuizRepositoryImpl {
 
 enum QuizError: Error {
   case invalidResponse
+  case failedToFetchSimilarityMap
   case proposalNotFound
 }
 
