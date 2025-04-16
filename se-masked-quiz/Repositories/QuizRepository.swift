@@ -34,7 +34,6 @@ protocol QuizRepository: Actor, EnvironmentKey {
 actor QuizRepositoryImpl: QuizRepository {
   private let s3Client: S3Client
   private let quizBucket = "se-masked-quiz"
-  private var wordCandidates = [Int: [String]]()
   private let userDefaults: UserDefaults
 
   private static let scoreKey = "proposal_scores"
@@ -64,7 +63,6 @@ actor QuizRepositoryImpl: QuizRepository {
     Task {
       do {
         try await update { s in
-          s.wordCandidates = try await fetchFrequentWords()
           s.similarityMap = try await fetchSimilarityMap()
         }
       } catch {
@@ -115,13 +113,15 @@ actor QuizRepositoryImpl: QuizRepository {
     // Sort answers by index to ensure correct order
     let sortedAnswers = proposalAnswers.sorted { $0.index < $1.index }
 
+    self.similarityMap = try await fetchSimilarityMap()
+
     return sortedAnswers.map { answer in
       return Quiz(
         id: UUID().uuidString,
         proposalId: proposalId,
         index: answer.index,
         answer: answer.answer,
-        choices: similarityMap[answer.answer] ?? []
+        choices: similarityMap[answer.answer]?.shuffled().prefix(3).map(\.self) ?? []
       )
     }
   }
@@ -137,6 +137,9 @@ actor QuizRepositoryImpl: QuizRepository {
 
   /// - Returns: A dictionary mapping word lengths to arrays of words which are similar to the answer
   func fetchSimilarityMap() async throws -> [String: [String]] {
+    guard similarityMap.isEmpty else {
+      return similarityMap
+    }
     let input = GetObjectInput(bucket: quizBucket, key: "similarity_map.json")
     let contents = try await s3Client.getObject(input: input)
     let binary = try? await contents.body?.readData()
@@ -151,17 +154,6 @@ actor QuizRepositoryImpl: QuizRepository {
 
   private func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
     try await run(self)
-  }
-
-  private func fetchFrequentWords() async throws -> [Int: [String]] {
-    let input = GetObjectInput(bucket: quizBucket, key: "word_freq_hist.json")
-    let contents = try await s3Client.getObject(input: input)
-    guard let binary = try await contents.body?.readData() else {
-      throw QuizError.invalidResponse
-    }
-
-    let wordFrequencies = try JSONDecoder().decode([WordFrequency].self, from: binary)
-    return Dictionary(grouping: wordFrequencies.map(\.word)) { $0.count }
   }
 }
 
