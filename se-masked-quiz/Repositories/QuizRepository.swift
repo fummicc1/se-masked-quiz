@@ -34,7 +34,6 @@ protocol QuizRepository: Actor, EnvironmentKey {
 actor QuizRepositoryImpl: QuizRepository {
   private let s3Client: S3Client
   private let quizBucket = "se-masked-quiz"
-  private var wordCandidates = [Int: [String]]()
   private let userDefaults: UserDefaults
 
   private static let scoreKey = "proposal_scores"
@@ -58,18 +57,6 @@ actor QuizRepositoryImpl: QuizRepository {
       )
     )
     self.userDefaults = userDefaults
-    Task {
-      do {
-        func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
-          try await run(self)
-        }
-        try await update { s in
-          s.wordCandidates = try await fetchFrequentWords()
-        }
-      } catch {
-        print("Failed to fetch frequent words: \(error)")
-      }
-    }
   }
 
   // MARK: - Score Management
@@ -120,7 +107,7 @@ actor QuizRepositoryImpl: QuizRepository {
         proposalId: proposalId,
         index: answer.index,
         answer: answer.answer,
-        choices: generateRandomChoices(excluding: answer.answer)
+        choices: answer.options
       )
     }
   }
@@ -136,20 +123,8 @@ actor QuizRepositoryImpl: QuizRepository {
 
   // MARK: - Private Helpers
 
-  private func generateRandomChoices(excluding answer: String) -> [String] {
-    let candidates = wordCandidates[answer.count] ?? []
-    return Array(candidates.shuffled().prefix(3))
-  }
-
-  private func fetchFrequentWords() async throws -> [Int: [String]] {
-    let input = GetObjectInput(bucket: quizBucket, key: "word_freq_hist.json")
-    let contents = try await s3Client.getObject(input: input)
-    guard let binary = try await contents.body?.readData() else {
-      throw QuizError.invalidResponse
-    }
-
-    let wordFrequencies = try JSONDecoder().decode([WordFrequency].self, from: binary)
-    return Dictionary(grouping: wordFrequencies.map(\.word)) { $0.count }
+  private func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
+    try await run(self)
   }
 }
 
@@ -162,6 +137,7 @@ extension QuizRepositoryImpl {
     struct QuizAnswer: Codable {
       var index: Int
       var answer: String
+      var options: [String]
     }
 
     init(from decoder: any Decoder) throws {
@@ -180,6 +156,7 @@ extension QuizRepositoryImpl {
 
 enum QuizError: Error {
   case invalidResponse
+  case failedToFetchSimilarityMap
   case proposalNotFound
 }
 
