@@ -25,5 +25,11 @@
     static var cloudflareR2SecretKey: String {
       ""
     }
+    static var serverBaseURL: String {
+      ""
+    }
+    static var serverApiKey: String {
+      ""
+    }
   }
 #endif

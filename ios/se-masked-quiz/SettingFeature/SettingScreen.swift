@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct SettingScreen: View {
   var body: some View {
@@ -13,8 +14,23 @@ struct SettingScreen: View {
       List {
         // Account Section
         Section("アカウント") {
-          Text("Appleでサインイン")
-            .foregroundColor(.gray)
+          SignInWithAppleButton { request in
+                  request.requestedScopes = [.email, .fullName]
+            request.state = "foo"
+                } onCompletion: { result in
+                  Task {
+                    do {
+                      guard let credential = try result.get().credential as? ASAuthorizationAppleIDCredential
+                      else {
+                        return
+                      }
+                      try await userRepository.signIn(with: credential)
+                    } catch {
+                      dump(error)
+                    }
+                  }
+                }
+                .listRowBackground(Color.clear)
         }
 
         // License Section
