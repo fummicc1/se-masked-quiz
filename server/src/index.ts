@@ -11,8 +11,10 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { app } from './app';
+import { Bindings } from './types';
+
+
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		return new Response('Hello World!');
-	},
-} satisfies ExportedHandler<Env>;
+	fetch: app.fetch,
+  } as ExportedHandler<Bindings>;
