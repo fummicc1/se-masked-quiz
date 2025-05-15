@@ -8,13 +8,13 @@ import {
   UserResponseSchema 
 } from '../types/index'; // AppleAuthCallbackRequestSchema, AuthErrorResponseSchema, LogoutResponseSchema は直接使わないので削除も検討
 import { z } from 'zod'; // ZodErrorのためにインポート
-import { validateAuthorizationWithApiKey } from './middlewares/authorization';
+import { validateAuthorization, validateAuthorizationWithApiKey } from './middlewares/authorization';
 
 export const authRouter = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 authRouter.post(
   '/apple/sign-in',
-  validateAuthorizationWithApiKey,
+  validateAuthorization('api_key'),
   zValidator('json', AppleSignInRequestSchema),
   async (c) => {
     try {
@@ -82,7 +82,8 @@ authRouter.post(
         const { error: updateUserError } = await supabase.auth.updateUser({
           data: { 
             prisma_user_id: prismaUser.id,
-            apple_user_id: appleSub 
+            apple_user_id: appleSub,
+            display_name: displayName,
           },
         });
         if (updateUserError) {
@@ -99,7 +100,6 @@ authRouter.post(
         refreshToken: supabaseSession.refresh_token,
         isNewUser: isNewPrismaUser 
       };
-      
       return c.json(responsePayload);
 
     } catch (error) {
@@ -111,6 +111,10 @@ authRouter.post(
     }
   }
 );
+
+authRouter.post('/refresh-token', validateAuthorization('refresh_token'), async (c) => {
+  
+})
 
 // /me route to get user profile using Supabase token
 authRouter.get('/me', async (c) => {

@@ -1,20 +1,11 @@
 import { Hono } from 'hono';
-import { createClient, SupabaseClient } from '@supabase/supabase-js'; 
+import { createClient } from '@supabase/supabase-js'; 
 import { authRouter } from './routes/auth';
 import { cors } from 'hono/cors';
 import { Bindings } from './types'; // Bindingsを正しくインポート
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User } from '@prisma/client';
 import { debugRouter } from './routes/debug';
 import { PrismaPg } from '@prisma/adapter-pg';
-
-// ローカルの Bindings 型定義は削除されました
-
-declare module 'hono' {
-  interface ContextVariableMap {
-    prisma: PrismaClient;
-    supabase: SupabaseClient;
-  }
-}
 
 export const app = new Hono<{ Bindings: Bindings }>();
 
