@@ -16,7 +16,6 @@ struct SettingScreen: View {
         Section("アカウント") {
           SignInWithAppleButton { request in
                   request.requestedScopes = [.email, .fullName]
-            request.state = "foo"
                 } onCompletion: { result in
                   Task {
                     do {
@@ -24,7 +23,8 @@ struct SettingScreen: View {
                       else {
                         return
                       }
-                      try await userRepository.signIn(with: credential)
+                      let response = try await userRepository.signIn(with: credential)
+                      print(response)
                     } catch {
                       dump(error)
                     }

@@ -48,6 +48,16 @@ enum UserAPITarget: APITarget {
   case signIn(withCredential: ASAuthorizationAppleIDCredential)
 }
 
+
+public struct UserSignInResponse: Codable {
+  let id: String
+  let email: String?
+  let displayName: String?
+  let accessToken: String
+  let refreshToken: String
+  let isNewUser: Bool
+}
+
 // Repository
 /// @mockable
 public actor UserRepository {
@@ -60,13 +70,17 @@ public actor UserRepository {
   
   public func signIn(
     with credential: ASAuthorizationAppleIDCredential
-  ) async throws {
+  ) async throws -> UserSignInResponse {
     guard credential.identityToken
       .flatMap({ String(data: $0, encoding: .utf8) }) != nil else {
       throw UserRepositoryError.invalidToken
     }
-    try await apiClient
+    let response: UserSignInResponse = try await apiClient
       .send(with: .signIn(withCredential: credential))
+    let accessToken = response.accessToken
+    let refreshToken = response.refreshToken
+    // Save tokens to Keychain
+    
   }
 }
 
