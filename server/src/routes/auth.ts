@@ -112,8 +112,24 @@ authRouter.post(
   }
 );
 
-authRouter.post('/refresh-token', validateAuthorization('refresh_token'), async (c) => {
-  
+authRouter.post('/reissue-access-token', validateAuthorization('refresh_token'), async (c) => {
+  // Update access token
+  const supabase = c.get('supabase');
+  const user = c.get('user');
+  if (!user?.refreshToken) {
+    return c.json({ error: 'No refresh token found', message: 'リフレッシュトークンが見つかりません' }, 401);
+  }
+  const { data: { session }, error: refreshError } = await supabase.auth.refreshSession({
+    refresh_token: user.refreshToken.token,
+  });
+  if (refreshError) {
+    console.error('Supabase refreshSession error:', refreshError.message);
+    return c.json({ error: 'Failed to refresh session', message: 'セッションの更新に失敗しました' }, 500);
+  }
+  if (!session) {
+    return c.json({ error: 'No session found', message: 'セッションが見つかりません' }, 500);
+  }
+  return c.json({ accessToken: session.access_token });
 })
 
 // /me route to get user profile using Supabase token

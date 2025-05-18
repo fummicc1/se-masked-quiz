@@ -37,6 +37,9 @@ export const validateAuthorizationWithRefreshToken: MiddlewareHandler<{ Bindings
         where: {
             id: refreshToken.userId,
         },
+        include: {
+            refreshToken: true,
+        }
     });
     if (!user) {
         return c.json({ error: 'Unauthorized' }, 401);
@@ -86,6 +89,9 @@ export const validateAuthorizationWithSupabaseToken: MiddlewareHandler<{ Binding
         where: {
             email: data?.claims?.email,
         },
+        include: {
+            refreshToken: true,
+        }
     });
     if (!user) {
         return c.json({ error: 'Unauthorized' }, 401);

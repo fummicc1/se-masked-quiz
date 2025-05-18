@@ -1,4 +1,4 @@
-import { PrismaClient, User } from '@prisma/client';
+import { PrismaClient, User, UserRefreshToken } from '@prisma/client';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // 環境変数の型定義 (ここに追加)
@@ -15,7 +15,7 @@ declare global {
   interface Variables {
     prisma: PrismaClient;
     supabase: SupabaseClient;
-    user?: User;
+    user?: User & { refreshToken: UserRefreshToken | null };
   }
   // Cloudflare Workers の ExecutionContext を Hono で利用可能にするための型定義
   interface ExecutionContext {
@@ -28,7 +28,7 @@ declare module 'hono' {
   interface ContextVariableMap {
     prisma: PrismaClient;
     supabase: SupabaseClient;
-    user?: User;
+    user?: User & { refreshToken: UserRefreshToken | null };
   }
 }
 

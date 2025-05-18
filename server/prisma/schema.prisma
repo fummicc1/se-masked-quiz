@@ -10,21 +10,24 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  appleId     String?  @unique @map("apple_id")
-  email       String   @unique
-  displayName String?  @map("display_name")
-  avatarUrl   String?  @map("avatar_url")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String            @id @default(cuid())
+  appleId        String?           @unique @map("apple_id")
+  email          String            @unique
+  displayName    String?           @map("display_name")
+  avatarUrl      String?           @map("avatar_url")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  refreshTokenId String?           @unique @map("refresh_token_id")
+  refreshToken   UserRefreshToken? @relation(fields: [refreshTokenId], references: [id])
 }
 
 model UserRefreshToken {
-  id          String   @id @default(cuid(2))
-  userId      String   @map("user_id")
-  token       String   @unique
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(cuid(2))
+  userId    String   @map("user_id")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  User      User?
 
   @@index([userId])
   @@index([token])
