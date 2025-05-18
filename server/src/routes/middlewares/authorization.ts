@@ -1,6 +1,7 @@
 import { Hono, MiddlewareHandler } from "hono";
 import * as jose from 'jose';
-import { Bindings } from "../../types";
+import { Bindings, AuthenticatedUser } from "../../types";
+import { EncryptionService } from "../../services/encryption";
 
 export type AuthStrategy = 'api_key' | 'supabase_token' | 'refresh_token';
 
@@ -25,27 +26,53 @@ export const validateAuthorizationWithRefreshToken: MiddlewareHandler<{ Bindings
         return c.json({ error: 'Unauthorized' }, 401);
     }
     const prisma = c.get('prisma');
-    const refreshToken = await prisma.userRefreshToken.findUnique({
-        where: {
-            token: token,
-        },
-    });
-    if (!refreshToken) {
-        return c.json({ error: 'Unauthorized' }, 401);
-    }
-    const user = await prisma.user.findUnique({
-        where: {
-            id: refreshToken.userId,
-        },
-        include: {
-            refreshToken: true,
+    
+    try {
+        // Find all refresh tokens and decrypt them to find a match
+        const refreshTokens = await prisma.userRefreshToken.findMany();
+        const encryptionService = new EncryptionService(c.env.REFRESH_TOKEN_ENCRYPTION_KEY);
+        
+        // Find the token by decrypting each stored token and comparing
+        const matchingToken = refreshTokens.find(rt => {
+            try {
+                const decryptedToken = encryptionService.decrypt(rt.token);
+                return decryptedToken === token;
+            } catch (e) {
+                console.error('Error decrypting token:', e);
+                return false;
+            }
+        });
+        
+        if (!matchingToken) {
+            return c.json({ error: 'Unauthorized' }, 401);
         }
-    });
-    if (!user) {
+        
+        const user = await prisma.user.findUnique({
+            where: {
+                id: matchingToken.userId,
+            },
+            include: {
+                refreshToken: true,
+            }
+        });
+        
+        if (!user) {
+            return c.json({ error: 'Unauthorized' }, 401);
+        }
+        
+        // Don't modify the original token from database
+        // Instead, add the decrypted token as a separate property
+        const authenticatedUser: AuthenticatedUser = {
+            ...user,
+            rawRefreshToken: token // This is the decoded token from Authorization header
+        };
+        
+        c.set('user', authenticatedUser);
+        await next();
+    } catch (error) {
+        console.error('Error validating refresh token:', error);
         return c.json({ error: 'Unauthorized' }, 401);
     }
-    c.set('user', user);
-    await next();
 }
 
 export const validateAuthorizationWithApiKey: MiddlewareHandler<{ Bindings: Bindings }> = async (c, next) => {
@@ -82,7 +109,7 @@ export const validateAuthorizationWithSupabaseToken: MiddlewareHandler<{ Binding
     if (claimsError) {
         return c.json({ error: 'Unauthorized' }, 401);
     }
-    if (!!data?.claims?.email) {
+    if (!data?.claims?.email) {
         return c.json({ error: 'Unauthorized' }, 401);
     }
     const user = await prisma.user.findUnique({

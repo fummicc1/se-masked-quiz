@@ -27,7 +27,7 @@ model UserRefreshToken {
   token     String   @unique
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  User      User?
+  user      User?
 
   @@index([userId])
   @@index([token])

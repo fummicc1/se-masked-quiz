@@ -8,7 +8,8 @@ import {
   UserResponseSchema 
 } from '../types/index'; // AppleAuthCallbackRequestSchema, AuthErrorResponseSchema, LogoutResponseSchema は直接使わないので削除も検討
 import { z } from 'zod'; // ZodErrorのためにインポート
-import { validateAuthorization, validateAuthorizationWithApiKey } from './middlewares/authorization';
+import { validateAuthorization } from './middlewares/authorization';
+import { TokenService } from '../services/token';
 
 export const authRouter = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
@@ -21,6 +22,7 @@ authRouter.post(
       const { idToken, displayName } = c.req.valid('json');
       const supabase = c.get('supabase');
       const prisma = c.get('prisma');
+      const tokenService = new TokenService(prisma, c.env.REFRESH_TOKEN_ENCRYPTION_KEY);
 
       // Step 1: Sign in with Supabase using the Apple ID token
       const { data: supabaseAuthData, error: supabaseSignInError } = 
@@ -91,6 +93,9 @@ authRouter.post(
         }
       }
       
+      // Step 5: Store the refresh token with encryption
+      await tokenService.storeRefreshToken(prismaUser.id, supabaseSession.refresh_token);
+      
       const responsePayload = {
         id: prismaUser.id,
         email: prismaUser.email,
@@ -115,52 +120,48 @@ authRouter.post(
 authRouter.post('/reissue-access-token', validateAuthorization('refresh_token'), async (c) => {
   // Update access token
   const supabase = c.get('supabase');
+  const prisma = c.get('prisma');
   const user = c.get('user');
+  const tokenService = new TokenService(prisma, c.env.REFRESH_TOKEN_ENCRYPTION_KEY);
+  
   if (!user?.refreshToken) {
     return c.json({ error: 'No refresh token found', message: 'リフレッシュトークンが見つかりません' }, 401);
   }
+  
+  if (!user.rawRefreshToken) {
+    return c.json({ error: 'No raw refresh token found', message: 'リフレッシュトークンの取得に失敗しました' }, 401);
+  }
+  
   const { data: { session }, error: refreshError } = await supabase.auth.refreshSession({
-    refresh_token: user.refreshToken.token,
+    refresh_token: user.rawRefreshToken,
   });
+  
   if (refreshError) {
     console.error('Supabase refreshSession error:', refreshError.message);
     return c.json({ error: 'Failed to refresh session', message: 'セッションの更新に失敗しました' }, 500);
   }
+  
   if (!session) {
     return c.json({ error: 'No session found', message: 'セッションが見つかりません' }, 500);
   }
-  return c.json({ accessToken: session.access_token });
+  
+  // Update the stored refresh token with the new one
+  if (session.refresh_token) {
+    await tokenService.storeRefreshToken(user.id, session.refresh_token);
+  }
+  
+  return c.json({ 
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token
+  });
 })
 
 // /me route to get user profile using Supabase token
-authRouter.get('/me', async (c) => {
+authRouter.get('/me', validateAuthorization('supabase_token'), async (c) => {
   try {
-    const authHeader = c.req.header('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-
-    if (!token) {
-      return c.json({ error: 'Unauthorized', message: '認証トークンが必要です' }, 401);
-    }
-
-    const supabase = c.get('supabase');
-    const { data: { user: supabaseUser }, error: userError } = await supabase.auth.getUser(token);
-
-    if (userError || !supabaseUser) {
-      console.error('Supabase getUser error for /me:', userError?.message);
-      return c.json({ error: 'Invalid token or user not found', message: userError?.message || '無効なトークン、またはSupabaseユーザーが見つかりません' }, 401);
-    }
-
-    const prismaUserId = supabaseUser.user_metadata?.prisma_user_id as string | undefined;
-    if (!prismaUserId) {
-      console.error(`Prisma user ID not found in Supabase user_metadata. Supabase User ID: ${supabaseUser.id}`);
-      return c.json({ error: 'User metadata incomplete', message: 'ユーザー情報が不完全です (Prisma ID連携なし)' }, 404);
-    }
-
-    const prisma = c.get('prisma');
-    const user = await prisma.user.findUnique({ where: { id: prismaUserId } });
+    const user = c.get('user');
 
     if (!user) {
-      console.error(`Prisma user not found for prisma_user_id: ${prismaUserId}. Supabase User ID: ${supabaseUser.id}`);
       return c.json({ error: 'User not found in DB', message: 'データベースにユーザーが見つかりません (Prisma連携不整合)' }, 404);
     }
 
@@ -190,11 +191,27 @@ authRouter.post('/logout', async (c) => {
 
     if (token) {
       const supabase = c.get('supabase');
+      const prisma = c.get('prisma');
+      
+      // Sign out from Supabase
       const { error: signOutError } = await supabase.auth.signOut(); 
       if (signOutError) {
         console.warn('Supabase signOut error (non-critical):', signOutError.message);
       }
+      
+      // Try to get user info to delete refresh token
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser(token);
+        if (supabaseUser?.user_metadata?.prisma_user_id) {
+          const prismaUserId = supabaseUser.user_metadata.prisma_user_id as string;
+          const tokenService = new TokenService(prisma, c.env.REFRESH_TOKEN_ENCRYPTION_KEY);
+          await tokenService.deleteRefreshToken(prismaUserId);
+        }
+      } catch (error) {
+        console.warn('Failed to delete refresh token during logout:', error);
+      }
     }
+    
     return c.json({ success: true, message: 'Logged out successfully. Please discard your token.' });
 
   } catch (error) {
