@@ -1,6 +1,7 @@
 import AuthenticationServices
 import Moya
 import MoyaAPIClient
+import KeychainAccess
 
 // Error
 public enum UserRepositoryError: LocalizedError {
@@ -63,9 +64,16 @@ public struct UserSignInResponse: Codable {
 public actor UserRepository {
   
   private let apiClient: APIClient<UserAPITarget>
+  private let keychain: Keychain
+  
+  private enum KeychainKeys {
+    static let accessToken = "accessToken"
+    static let refreshToken = "refreshToken"
+  }
   
   init(apiClient: APIClient<UserAPITarget> = .init()) {
     self.apiClient = apiClient
+    self.keychain = Keychain(service: "dev.fummicc1.se-masked-quiz")
   }
   
   public func signIn(
@@ -77,10 +85,43 @@ public actor UserRepository {
     }
     let response: UserSignInResponse = try await apiClient
       .send(with: .signIn(withCredential: credential))
-    let accessToken = response.accessToken
-    let refreshToken = response.refreshToken
-    // Save tokens to Keychain
     
+    // Save tokens to Keychain
+    try saveAccessToken(response.accessToken)
+    try saveRefreshToken(response.refreshToken)
+    
+    return response
+  }
+  
+  // MARK: - Token Management
+  
+  private func saveAccessToken(_ token: String) throws {
+    try keychain.set(token, key: KeychainKeys.accessToken)
+  }
+  
+  private func saveRefreshToken(_ token: String) throws {
+    try keychain.set(token, key: KeychainKeys.refreshToken)
+  }
+  
+  public func getAccessToken() throws -> String? {
+    try keychain.get(KeychainKeys.accessToken)
+  }
+  
+  public func getRefreshToken() throws -> String? {
+    try keychain.get(KeychainKeys.refreshToken)
+  }
+  
+  public func deleteAccessToken() throws {
+    try keychain.remove(KeychainKeys.accessToken)
+  }
+  
+  public func deleteRefreshToken() throws {
+    try keychain.remove(KeychainKeys.refreshToken)
+  }
+  
+  public func deleteAllTokens() throws {
+    try deleteAccessToken()
+    try deleteRefreshToken()
   }
 }
 
