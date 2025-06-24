@@ -1,0 +1,27 @@
+{
+  "name": "se-masked-quiz-server",
+  "version": "1.0.0",
+  "description": "Backend server for SE Masked Quiz app",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate:sqlite",
+    "db:migrate": "wrangler d1 execute se-masked-quiz-db --local --file=./migrations/0000_initial.sql"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "drizzle-orm": "^0.29.3",
+    "hono": "^4.6.14",
+    "jose": "^5.10.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "drizzle-kit": "^0.20.13",
+    "wrangler": "^3.93.1"
+  }
+}

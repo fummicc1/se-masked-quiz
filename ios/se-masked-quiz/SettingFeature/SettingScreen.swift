@@ -13,8 +13,11 @@ struct SettingScreen: View {
       List {
         // Account Section
         Section("アカウント") {
-          Text("Appleでサインイン")
-            .foregroundColor(.gray)
+          NavigationLink {
+            LoginView()
+          } label: {
+            Text("Appleでサインイン")
+          }
         }
 
         // License Section

@@ -1,0 +1,13 @@
+{
+  "version": "5",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1750754492834,
+      "tag": "0000_typical_iron_lad",
+      "breakpoints": true
+    }
+  ]
+}

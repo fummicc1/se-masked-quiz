@@ -25,5 +25,9 @@
     static var cloudflareR2SecretKey: String {
       ""
     }
+    
+    static var serverURL: String {
+      "http://localhost:8000"
+    }
   }
 #endif

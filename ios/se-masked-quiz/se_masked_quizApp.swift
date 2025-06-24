@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct se_masked_quizApp: App {
+  @StateObject private var authService = AuthenticationService()
+  
   var body: some Scene {
     WindowGroup {
       ProposalListScreen()
+        .environmentObject(authService)
     }
   }
 }

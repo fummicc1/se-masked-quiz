@@ -10,11 +10,13 @@ import SwiftUI
 struct ProposalListScreen: View {
   @Environment(\.seRepository) var repository
   @Environment(\.quizRepository) var quizRepository
+  @EnvironmentObject var authService: AuthenticationService
   @State private var proposals: AsyncProposals = .idle
   @State private var modalWebUrl: URL?
   @State private var offset: Int = 0
   @State private var shouldLoadNextPage: Bool = false
   @State private var showsSetting: Bool = false
+  @State private var showsLogin: Bool = false
 
   var body: some View {
     GeometryReader { proxy in
@@ -60,10 +62,26 @@ struct ProposalListScreen: View {
               Image(systemName: "gearshape")
             }
           }
+          
+          ToolbarItem(placement: .topBarTrailing) {
+            Button {
+              if authService.isAuthenticated {
+                authService.signOut()
+              } else {
+                showsLogin = true
+              }
+            } label: {
+              Image(systemName: authService.isAuthenticated ? "person.fill" : "person")
+            }
+          }
         }
       }
       .sheet(isPresented: $showsSetting) {
         SettingScreen()
+      }
+      .sheet(isPresented: $showsLogin) {
+        LoginView()
+          .environmentObject(authService)
       }
       .onChange(
         of: shouldLoadNextPage,

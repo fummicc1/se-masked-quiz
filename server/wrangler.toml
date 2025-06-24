@@ -1,0 +1,19 @@
+name = "se-masked-quiz-server"
+main = "src/index.ts"
+compatibility_date = "2024-01-24"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "se-masked-quiz-db"
+database_id = "c3c96adb-c9b7-4f49-b5e7-ffae7d764b5c"
+
+# Environment variables (secrets should be set via wrangler secret)
+[vars]
+APPLE_SERVICE_ID = "dev.fummicc1.se-masked-quiz"
+JWT_EXPIRES_IN = "7d"
+
+# KV Namespace for caching Apple public keys
+[[kv_namespaces]]
+binding = "CACHE"
+id = "067c30279a7440538625f2a007392294"
