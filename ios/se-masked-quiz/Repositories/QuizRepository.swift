@@ -11,8 +11,8 @@ import Foundation
 import SwiftUI
 
 // MARK: - Repository Protocol
-
-protocol QuizRepository: Actor, EnvironmentKey {
+/// @mockable
+protocol QuizRepository: Actor {
   /// Save the score for a proposal
   func saveScore(_ score: ProposalScore) async
 
@@ -162,7 +162,7 @@ enum QuizError: Error {
 
 // MARK: - Environment
 
-extension QuizRepositoryImpl: EnvironmentKey {
+enum QuizRepositoryDependencyKey: EnvironmentKey {
   static var defaultValue: any QuizRepository {
     QuizRepositoryImpl(
       cloudflareR2Endpoint: Env.cloudflareR2Endpoint,
@@ -174,9 +174,10 @@ extension QuizRepositoryImpl: EnvironmentKey {
 
 extension EnvironmentValues {
   var quizRepository: any QuizRepository {
-    get { self[QuizRepositoryImpl.self] }
-    set { self[QuizRepositoryImpl.self] = newValue }
+    get { self[QuizRepositoryDependencyKey.self] }
+    set { self[QuizRepositoryDependencyKey.self] = newValue }
   }
 }
 
+// UserDefaults is originally thread-safe.
 extension UserDefaults: @retroactive @unchecked Sendable {}

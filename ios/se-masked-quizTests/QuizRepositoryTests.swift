@@ -7,8 +7,7 @@ final class QuizRepositoryTests: XCTestCase {
   var userDefaults: UserDefaults!
 
   override func setUp() {
-    userDefaults = UserDefaults(suiteName: #function)
-    userDefaults.removePersistentDomain(forName: #function)
+    userDefaults = UserDefaults(suiteName: #file)
 
     sut = QuizRepositoryImpl(
       cloudflareR2Endpoint: "test-endpoint",
@@ -19,7 +18,7 @@ final class QuizRepositoryTests: XCTestCase {
   }
 
   override func tearDown() {
-    userDefaults.removePersistentDomain(forName: #function)
+    userDefaults.removePersistentDomain(forName: #file)
     userDefaults = nil
     sut = nil
   }
