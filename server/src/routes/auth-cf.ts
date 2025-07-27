@@ -5,8 +5,9 @@ import { createJWT } from '../utils/jwt-cf';
 import { authMiddleware } from '../middleware/auth-cf';
 import { createDb } from '../db';
 import type { Env } from '../types/env';
+import type { Variables } from '../types/context';
 
-const authRouter = new Hono<{ Bindings: Env }>();
+const authRouter = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // Request validation schemas
 const appleSignInSchema = z.object({

@@ -1,9 +1,8 @@
-import { importSPKI, jwtVerify } from 'jose';
+import { jwtVerify } from 'jose';
 import { eq } from 'drizzle-orm';
 import type { AppleTokenPayload, ApplePublicKey } from '../types';
 import type { Database } from '../db';
 import { users, type User, type NewUser } from '../db/schema';
-import type { Env } from '../types/env';
 
 export class AppleAuthService {
   private static APPLE_ISSUER = 'https://appleid.apple.com';
@@ -37,12 +36,12 @@ export class AppleAuthService {
 
     // Fetch from Apple
     const response = await fetch(AppleAuthService.APPLE_PUBLIC_KEY_URL);
-    const data = await response.json();
+    const data = await response.json() as { keys: ApplePublicKey[] };
     
     const keys = new Map<string, CryptoKey>();
     const cacheData: Record<string, any> = {};
     
-    for (const key of data.keys as ApplePublicKey[]) {
+    for (const key of data.keys) {
       const jwk = {
         kty: key.kty,
         n: key.n,

@@ -4,7 +4,7 @@ import type { JWTPayload } from '../types';
 export async function createJWT(
   payload: Omit<JWTPayload, 'iat' | 'exp'>,
   secret: string,
-  expiresIn: string = '7d'
+  expiresIn: string = '1d'
 ): Promise<string> {
   const encoder = new TextEncoder();
   const key = encoder.encode(secret);

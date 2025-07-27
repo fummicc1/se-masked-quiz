@@ -1,8 +1,12 @@
 import { Context, Next } from 'hono';
 import { verifyJWT } from '../utils/jwt-cf';
 import type { Env } from '../types/env';
+import type { Variables } from '../types/context';
 
-export async function authMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
+export async function authMiddleware(
+  c: Context<{ Bindings: Env; Variables: Variables }>,
+  next: Next
+): Promise<Response | void> {
   const authHeader = c.req.header('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
