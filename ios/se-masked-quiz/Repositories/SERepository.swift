@@ -8,7 +8,12 @@
 import Foundation
 import SwiftUI
 
-struct SERepository: Sendable {
+/// @mockable
+protocol SERepository {
+  func fetch(offset: Int) async throws -> [SwiftEvolution]
+}
+
+struct SERepositoryImpl: SERepository, Sendable {
   func fetch(offset: Int) async throws -> [SwiftEvolution] {
     let microCmsApiKey = Env.microCmsApiKey
     let microCmsApiEndpoint = Env.microCmsApiEndpoint
@@ -29,15 +34,15 @@ struct SERepository: Sendable {
   }
 }
 
-extension SERepository: EnvironmentKey {
-  static var defaultValue: Self {
-    SERepository()
+enum SERepositoryDependencyKey: EnvironmentKey {
+  static var defaultValue: any SERepository {
+    SERepositoryImpl()
   }
 }
 
 extension EnvironmentValues {
-  var seRepository: SERepository {
-    get { self[SERepository.self] }
-    set { self[SERepository.self] = newValue }
+  var seRepository: any SERepository {
+    get { self[SERepositoryDependencyKey.self] }
+    set { self[SERepositoryDependencyKey.self] = newValue }
   }
 }
