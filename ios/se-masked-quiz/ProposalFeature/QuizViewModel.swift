@@ -64,15 +64,24 @@ final class QuizViewModel: ObservableObject {
 
   private func updateScore() {
     guard let proposalId = currentQuiz?.proposalId else { return }
+    
+    let allQuizByIndex = Dictionary(uniqueKeysWithValues: allQuiz.map({ ($0.index, $0) }))
 
-    let questionResults = allQuiz.map { quiz in
-      QuestionResult(
-        index: quiz.index,
-        isCorrect: isCorrect[quiz.index] ?? false,
-        answer: quiz.answer,
-        userAnswer: selectedAnswer[quiz.index] ?? ""
-      )
-    }
+    let questionResults = zip(selectedAnswer, isCorrect)
+      .compactMap({ args -> QuestionResult? in
+        let _selectedAnswer = args.0
+        let _isCorrect = args.1
+        
+        guard let quiz = allQuizByIndex[_selectedAnswer.key] else {
+          return nil
+        }
+        return QuestionResult(
+          index: quiz.index,
+          isCorrect: _isCorrect.value,
+          answer: quiz.answer,
+          userAnswer: _selectedAnswer.value
+        )
+      })
 
     let newScore = ProposalScore(
       proposalId: proposalId,
