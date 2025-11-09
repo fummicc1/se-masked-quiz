@@ -11,12 +11,6 @@ struct SettingScreen: View {
   var body: some View {
     NavigationStack {
       List {
-        // Account Section
-        Section("アカウント") {
-          Text("Appleでサインイン")
-            .foregroundColor(.gray)
-        }
-
         // License Section
         Section("ライセンス") {
           NavigationLink {
