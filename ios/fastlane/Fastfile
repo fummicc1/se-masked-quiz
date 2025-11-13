@@ -1,0 +1,48 @@
+# Fastfile for Swift Evolution Quiz
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Upload metadata to App Store Connect"
+  lane :upload_metadata do
+    deliver(
+      app_identifier: ENV["APP_IDENTIFIER"],
+      skip_screenshots: false,
+      skip_binary_upload: true,
+      skip_app_version_update: true,
+      force: true,
+      run_precheck_before_submit: false,
+      submit_for_review: false
+    )
+  end
+
+  desc "Upload metadata only (no screenshots)"
+  lane :upload_metadata_only do
+    deliver(
+      app_identifier: ENV["APP_IDENTIFIER"],
+      skip_screenshots: true,
+      skip_binary_upload: true,
+      skip_app_version_update: true,
+      force: true,
+      run_precheck_before_submit: false,
+      submit_for_review: false
+    )
+  end
+
+  desc "Download existing metadata from App Store Connect"
+  lane :download_metadata do
+    download_metadata(
+      app_identifier: ENV["APP_IDENTIFIER"]
+    )
+  end
+
+  desc "Preview metadata changes before upload"
+  lane :preview_metadata do
+    deliver(
+      app_identifier: ENV["APP_IDENTIFIER"],
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      preview_only: true
+    )
+  end
+end

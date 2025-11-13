@@ -1,0 +1,33 @@
+# Fastlane specific
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Sensitive files - DO NOT COMMIT
+*.cer
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# App Store Connect credentials
+*.env
+*.env.secret
+*.env.default
+AuthKey_*.p8
+
+# Fastlane session files
+*.session
+
+# Delivery/Upload logs
+fastlane/.DS_Store
+deliver/*.itmsp
+
+# Temporary files
+*.tmp
+.deliver/
+
+# Build artifacts
+builds/
+*.ipa
+*.dSYM.zip

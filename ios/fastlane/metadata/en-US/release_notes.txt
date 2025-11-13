@@ -1,0 +1,11 @@
+Initial Release!
+
+Learn Swift Evolution proposals effectively with interactive quizzes.
+
+✨ Features
+• Comprehensive coverage of all Swift Evolution proposals
+• Interactive fill-in-the-blank quizzes
+• Score tracking and progress management
+• Simple and intuitive UI
+
+Download now and take your first step to Swift mastery!
