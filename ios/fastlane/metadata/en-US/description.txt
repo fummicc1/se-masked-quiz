@@ -1,0 +1,70 @@
+Learn Swift's Evolution Through Interactive Quizzes
+
+Swift Evolution Quiz is an educational app that helps you master Swift Evolution proposals through interactive fill-in-the-blank questions. Instead of just reading proposals, actively test your understanding and retain knowledge more effectively.
+
+
+Key Features
+
+◆ Interactive Learning Experience
+Important keywords in proposals are masked. Tap them to reveal 4-choice quizzes. Test your understanding and learn terminology in context.
+
+◆ Comprehensive Coverage
+Access all official Swift Evolution proposals. From the latest features to historical changes, understand Swift's complete evolution.
+
+◆ Progress Tracking
+Track scores for each proposal with percentage-based results. See at a glance which proposals you've mastered and which need review.
+
+◆ Learn at Your Pace
+Choose any proposal and start learning. Your progress auto-saves, so you can resume anytime.
+
+◆ Reset Function
+Want to test your knowledge again? Reset any proposal's quiz to retake it.
+
+
+Perfect For
+
+• Developers wanting to efficiently learn Swift's latest features
+• Those seeking deep understanding of Swift Evolution proposals
+• Preparing for technical interviews on Swift language specs
+• Learning Swift's historical evolution systematically
+• Active learners who prefer testing over passive reading
+
+
+Maximize Learning Effectiveness
+
+Unlike passive reading, our fill-in-the-blank approach ensures:
+
+• Natural focus on important terms for better retention
+• Immediate feedback on correct/incorrect answers
+• Gamified scoring to maintain motivation
+• Repetition for long-term memory
+
+Boost Your Developer Skills
+
+Swift evolves continuously. With this app:
+
+1. Catch up on latest language features quickly
+2. Understand the background and design philosophy
+3. Use proper terminology in code reviews and discussions
+4. Demonstrate technical leadership in your team
+
+
+Simple, Focused UI
+
+• Browse proposal list and pick topics of interest
+• Read proposals with masked keywords
+• Tap to reveal quiz and choose from 4 options
+• Check scores to monitor understanding
+
+Intuitive interface keeps you focused on learning.
+
+
+Privacy & Data
+
+• Learning data stored locally on device
+• No personal information collected
+• Internet connection only needed for fetching proposals
+
+
+Stay ahead as a Swift developer.
+Download now and master Swift's evolution systematically.

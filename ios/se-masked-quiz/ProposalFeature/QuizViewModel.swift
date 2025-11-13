@@ -64,14 +64,14 @@ final class QuizViewModel: ObservableObject {
 
   private func updateScore() {
     guard let proposalId = currentQuiz?.proposalId else { return }
-    
+
     let allQuizByIndex = Dictionary(uniqueKeysWithValues: allQuiz.map({ ($0.index, $0) }))
 
     let questionResults = zip(selectedAnswer, isCorrect)
       .compactMap({ args -> QuestionResult? in
         let _selectedAnswer = args.0
         let _isCorrect = args.1
-        
+
         guard let quiz = allQuizByIndex[_selectedAnswer.key] else {
           return nil
         }
