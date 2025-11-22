@@ -53,6 +53,7 @@ struct ProposalListScreen: View {
           )
         }
         .toolbar {
+#if os(iOS)
           ToolbarItem(placement: .topBarLeading) {
             Button {
               showsSetting = true
@@ -60,6 +61,15 @@ struct ProposalListScreen: View {
               Image(systemName: "gearshape")
             }
           }
+#elseif os(macOS)
+          ToolbarItem(placement: .navigation) {
+            Button {
+              showsSetting = true
+            } label: {
+              Image(systemName: "gearshape")
+            }
+          }
+#endif
         }
       }
       .sheet(isPresented: $showsSetting) {

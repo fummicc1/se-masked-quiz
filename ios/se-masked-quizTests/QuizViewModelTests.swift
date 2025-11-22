@@ -5,20 +5,62 @@ import XCTest
 @MainActor
 final class QuizViewModelTests: XCTestCase {
   var sut: QuizViewModel!
-  var mockRepository: MockQuizRepository!
+  var mockRepository: QuizRepositoryMock!
+  var mockScores: [String: ProposalScore] = [:]
+  var mockQuizzes: [String: [Quiz]] = [:]
 
   override func setUp() async throws {
-    mockRepository = MockQuizRepository()
-    sut = QuizViewModel(quizRepository: mockRepository)
+    mockRepository = QuizRepositoryMock()
+    mockScores = [:]
+    mockQuizzes = [:]
+
+    // Setup default handlers using actor-safe methods
+    await mockRepository.setGetAllScoresHandler { @MainActor [weak self] in
+      return self?.mockScores ?? [:]
+    }
+
+    await mockRepository.setGetScoreHandler { @MainActor [weak self] proposalId in
+      return self?.mockScores[proposalId]
+    }
+
+    await mockRepository.setSaveScoreHandler { @MainActor [weak self] score in
+      self?.mockScores[score.proposalId] = score
+    }
+
+    await mockRepository.setResetScoreHandler { @MainActor [weak self] proposalId in
+      self?.mockScores.removeValue(forKey: proposalId)
+    }
+
+    await mockRepository.setFetchQuizHandler { @MainActor [weak self] proposalId in
+      guard let quizzes = self?.mockQuizzes[proposalId] else {
+        throw QuizError.proposalNotFound
+      }
+      return quizzes
+    }
+
+    sut = QuizViewModel(proposalId: "test", quizRepository: mockRepository)
   }
 
   override func tearDown() async throws {
-    await mockRepository.clearAll()
+    mockScores = [:]
+    mockQuizzes = [:]
     sut = nil
     mockRepository = nil
   }
 
-  func testStartQuiz_WhenSuccessful_LoadsQuizAndScore() async throws {
+  private func setQuizzes(_ quizzes: [Quiz], for proposalId: String) {
+    mockQuizzes[proposalId] = quizzes
+  }
+
+  private func setShouldThrowError(_ shouldThrow: Bool) async {
+    if shouldThrow {
+      await mockRepository.setFetchQuizHandler { _ in
+        throw QuizError.proposalNotFound
+      }
+    }
+  }
+
+  func testConfigure_WhenSuccessful_LoadsQuizAndScore() async throws {
     // Given
     let proposalId = "0001"
     let quizzes = [
@@ -29,17 +71,22 @@ final class QuizViewModelTests: XCTestCase {
         id: "2", proposalId: proposalId, index: 1, answer: "async",
         choices: ["sync", "await", "concurrent"]),
     ]
-    await mockRepository.setQuizzes(quizzes, for: proposalId)
+    setQuizzes(quizzes, for: proposalId)
 
     let existingResults = [
       QuestionResult(index: 0, isCorrect: true, answer: "Swift", userAnswer: "Swift"),
       QuestionResult(index: 1, isCorrect: false, answer: "async", userAnswer: "sync"),
     ]
     let existingScore = ProposalScore(proposalId: proposalId, questionResults: existingResults)
-    await mockRepository.saveScore(existingScore)
+    mockScores[proposalId] = existingScore
+
+    sut = .init(
+      proposalId: proposalId,
+      quizRepository: mockRepository
+    )
 
     // When
-    sut.startQuiz(for: proposalId)
+    await sut.configure()
 
     // Then
     try await Task.sleep(nanoseconds: 100_000_000)
@@ -56,16 +103,18 @@ final class QuizViewModelTests: XCTestCase {
     XCTAssertEqual(sut.isCorrect[1], false)
   }
 
-  func testStartQuiz_WhenError_HandlesFailure() async throws {
+  func testConfigure_WhenError_HandlesFailure() async throws {
     // Given
     let proposalId = "0001"
-    await mockRepository.clearAll()
-    try await updateQuizRepository(of: mockRepository) {
-      $0.shouldThrowError = true
-    }
+    await setShouldThrowError(true)
+
+    sut = .init(
+      proposalId: proposalId,
+      quizRepository: mockRepository
+    )
 
     // When
-    sut.startQuiz(for: proposalId)
+    await sut.configure()
 
     // Then
     try await Task.sleep(nanoseconds: 100_000_000)
@@ -80,8 +129,13 @@ final class QuizViewModelTests: XCTestCase {
     let quiz = Quiz(
       id: "1", proposalId: proposalId, index: 0, answer: "Swift",
       choices: ["Java", "Kotlin", "Rust"])
-    await mockRepository.setQuizzes([quiz], for: proposalId)
-    sut.startQuiz(for: proposalId)
+    setQuizzes([quiz], for: proposalId)
+
+    sut = .init(
+      proposalId: proposalId,
+      quizRepository: mockRepository
+    )
+    await sut.configure()
 
     // Wait for quiz to load
     try await Task.sleep(nanoseconds: 100_000_000)
@@ -98,7 +152,7 @@ final class QuizViewModelTests: XCTestCase {
     XCTAssertEqual(sut.currentScore?.percentage, 100)
 
     // Verify score was saved with correct question result
-    let savedScore = await mockRepository.getScore(for: proposalId)
+    let savedScore = mockScores[proposalId]
     XCTAssertEqual(savedScore?.questionResults.first?.isCorrect, true)
     XCTAssertEqual(savedScore?.questionResults.first?.userAnswer, "Swift")
   }
@@ -109,8 +163,13 @@ final class QuizViewModelTests: XCTestCase {
     let quiz = Quiz(
       id: "1", proposalId: proposalId, index: 0, answer: "Swift",
       choices: ["Java", "Kotlin", "Rust"])
-    await mockRepository.setQuizzes([quiz], for: proposalId)
-    sut.startQuiz(for: proposalId)
+    setQuizzes([quiz], for: proposalId)
+
+    sut = .init(
+      proposalId: proposalId,
+      quizRepository: mockRepository
+    )
+    await sut.configure()
 
     // Wait for quiz to load
     try await Task.sleep(nanoseconds: 100_000_000)
@@ -127,7 +186,7 @@ final class QuizViewModelTests: XCTestCase {
     XCTAssertEqual(sut.currentScore?.percentage, 0)
 
     // Verify score was saved with incorrect question result
-    let savedScore = await mockRepository.getScore(for: proposalId)
+    let savedScore = mockScores[proposalId]
     XCTAssertEqual(savedScore?.questionResults.first?.isCorrect, false)
     XCTAssertEqual(savedScore?.questionResults.first?.userAnswer, "Java")
   }
@@ -138,8 +197,13 @@ final class QuizViewModelTests: XCTestCase {
     let quiz = Quiz(
       id: "1", proposalId: proposalId, index: 0, answer: "Swift",
       choices: ["Java", "Kotlin", "Rust"])
-    await mockRepository.setQuizzes([quiz], for: proposalId)
-    sut.startQuiz(for: proposalId)
+    setQuizzes([quiz], for: proposalId)
+
+    sut = .init(
+      proposalId: proposalId,
+      quizRepository: mockRepository
+    )
+    await sut.configure()
 
     // Wait for quiz to load
     try await Task.sleep(nanoseconds: 100_000_000)
@@ -161,10 +225,15 @@ final class QuizViewModelTests: XCTestCase {
     let quiz = Quiz(
       id: "1", proposalId: proposalId, index: 0, answer: "Swift",
       choices: ["Java", "Kotlin", "Rust"])
-    await mockRepository.setQuizzes([quiz], for: proposalId)
+    setQuizzes([quiz], for: proposalId)
+
+    sut = .init(
+      proposalId: proposalId,
+      quizRepository: mockRepository
+    )
 
     // Set initial state
-    sut.startQuiz(for: proposalId)
+    await sut.configure()
     try await Task.sleep(nanoseconds: 100_000_000)
 
     sut.showQuizSelections(index: 0)
@@ -185,7 +254,7 @@ final class QuizViewModelTests: XCTestCase {
     XCTAssertTrue(sut.isCorrect.isEmpty)
 
     // Verify score was removed from repository
-    let savedScore = await mockRepository.getScore(for: proposalId)
+    let savedScore = mockScores[proposalId]
     XCTAssertNil(savedScore)
   }
 
@@ -198,13 +267,13 @@ final class QuizViewModelTests: XCTestCase {
     let quiz1 = Quiz(
       id: "1", proposalId: proposalId1, index: 0, answer: "Swift",
       choices: ["Java", "Kotlin", "Rust"])
-    await mockRepository.setQuizzes([quiz1], for: proposalId1)
+    setQuizzes([quiz1], for: proposalId1)
 
     // Set up second quiz
     let quiz2 = Quiz(
       id: "2", proposalId: proposalId2, index: 0, answer: "async",
       choices: ["sync", "await", "concurrent"])
-    await mockRepository.setQuizzes([quiz2], for: proposalId2)
+    setQuizzes([quiz2], for: proposalId2)
 
     // Save scores for both quizzes
     let score1 = ProposalScore(
@@ -220,24 +289,18 @@ final class QuizViewModelTests: XCTestCase {
       ]
     )
 
-    await mockRepository.saveScore(score1)
-    await mockRepository.saveScore(score2)
+    mockScores[proposalId1] = score1
+    mockScores[proposalId2] = score2
 
     // When
     await sut.resetQuiz(for: proposalId1)
 
     // Then
-    let remainingScore = await mockRepository.getScore(for: proposalId2)
-    let resetScore = await mockRepository.getScore(for: proposalId1)
+    let remainingScore = mockScores[proposalId2]
+    let resetScore = mockScores[proposalId1]
 
     XCTAssertNil(resetScore, "Score for proposalId1 should be reset")
     XCTAssertNotNil(remainingScore, "Score for proposalId2 should remain")
     XCTAssertEqual(remainingScore?.proposalId, proposalId2)
   }
-}
-
-private func updateQuizRepository<R: QuizRepository>(
-  of repository: R, call: (isolated R) async throws -> Void
-) async throws {
-  try await call(repository)
 }
