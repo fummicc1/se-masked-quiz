@@ -62,7 +62,9 @@ struct ProposalQuizView: View {
       }
     }
     .navigationTitle(proposal.title)
+    #if os(iOS)
     .navigationBarTitleDisplayMode(.inline)
+    #endif
     .task {
       await quizViewModel.configure()
     }
