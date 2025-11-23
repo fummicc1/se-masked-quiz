@@ -64,6 +64,16 @@ actor QuizRepositoryMock: QuizRepository {
         }
         
     }
+
+    private(set) var getAllQuizCountsCallCount = 0
+    var getAllQuizCountsHandler: (() async throws -> [String: Int])?
+    func getAllQuizCounts() async throws -> [String: Int] {
+        getAllQuizCountsCallCount += 1
+        if let getAllQuizCountsHandler = getAllQuizCountsHandler {
+            return try await getAllQuizCountsHandler()
+        }
+        return [String: Int]()
+    }
 }
 
 
