@@ -15,6 +15,8 @@ struct ProposalListScreen: View {
   @State private var offset: Int = 0
   @State private var shouldLoadNextPage: Bool = false
   @State private var showsSetting: Bool = false
+  @State private var quizProgresses: [String: ProposalProgress] = [:]
+  @State private var isLoadingProgress: Bool = false
 
   var body: some View {
     GeometryReader { proxy in
@@ -22,7 +24,7 @@ struct ProposalListScreen: View {
         List {
           ForEach(proposals.content) { proposal in
             NavigationLink(value: proposal) {
-              VStack(alignment: .leading) {
+              VStack(alignment: .leading, spacing: 8) {
                 HStack {
                   MarkdownText(proposal.title)
                     .font(.headline)
@@ -35,6 +37,12 @@ struct ProposalListScreen: View {
                   .font(.subheadline)
                 MarkdownText(proposal.reviewManager ?? "")
                   .font(.subheadline)
+
+                // 進捗表示
+                if let progress = quizProgresses[proposal.proposalId] {
+                  QuizProgressView(progress: progress)
+                    .padding(.top, 4)
+                }
               }
             }
             .onAppear {
@@ -53,23 +61,23 @@ struct ProposalListScreen: View {
           )
         }
         .toolbar {
-#if os(iOS)
-          ToolbarItem(placement: .topBarLeading) {
-            Button {
-              showsSetting = true
-            } label: {
-              Image(systemName: "gearshape")
+          #if os(iOS)
+            ToolbarItem(placement: .topBarLeading) {
+              Button {
+                showsSetting = true
+              } label: {
+                Image(systemName: "gearshape")
+              }
             }
-          }
-#elseif os(macOS)
-          ToolbarItem(placement: .navigation) {
-            Button {
-              showsSetting = true
-            } label: {
-              Image(systemName: "gearshape")
+          #elseif os(macOS)
+            ToolbarItem(placement: .navigation) {
+              Button {
+                showsSetting = true
+              } label: {
+                Image(systemName: "gearshape")
+              }
             }
-          }
-#endif
+          #endif
         }
       }
       .sheet(isPresented: $showsSetting) {
@@ -106,6 +114,9 @@ struct ProposalListScreen: View {
           let proposals = try await repository.fetch(offset: offset)
           offset = proposals.count
           self.proposals = .loaded(proposals)
+
+          // 進捗情報を読み込む
+          await loadQuizProgresses()
         } catch {
           self.proposals = .error(error)
         }
@@ -149,6 +160,43 @@ struct ProposalListScreen: View {
           }
         }
       #endif
+    }
+  }
+
+  // MARK: - Private Methods
+
+  /// クイズの進捗情報を読み込む
+  private func loadQuizProgresses() async {
+    isLoadingProgress = true
+    defer { isLoadingProgress = false }
+
+    do {
+      // 全提案のスコアを取得
+      let allScores = await quizRepository.getAllScores()
+
+      // 全提案のクイズ数を取得
+      let allQuizCounts = try await quizRepository.getAllQuizCounts()
+
+      // ProposalProgressマップを生成
+      var progresses: [String: ProposalProgress] = [:]
+
+      for (proposalId, totalCount) in allQuizCounts {
+        let score = allScores[proposalId]
+        let answeredCount = score?.questionResults.count ?? 0
+        let correctCount = score?.correctCount ?? 0
+
+        progresses[proposalId] = ProposalProgress(
+          proposalId: proposalId,
+          answeredCount: answeredCount,
+          totalCount: totalCount,
+          correctCount: correctCount
+        )
+      }
+
+      quizProgresses = progresses
+    } catch {
+      print("Failed to load quiz progresses:", error)
+      // エラー時も進捗なしで表示を継続
     }
   }
 }
