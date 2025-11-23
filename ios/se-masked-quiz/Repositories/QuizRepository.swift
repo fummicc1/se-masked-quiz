@@ -28,6 +28,10 @@ protocol QuizRepository: Actor {
 
   /// Reset score for a specific proposal
   func resetScore(for proposalId: String) async
+
+  /// Get all quiz counts for all proposals
+  /// - Returns: Dictionary mapping proposal IDs to their quiz counts
+  func getAllQuizCounts() async throws -> [String: Int]
 }
 
 // MARK: - Repository Implementation
@@ -36,6 +40,11 @@ actor QuizRepositoryImpl: QuizRepository {
   private let s3Client: S3Client
   private let quizBucket = "se-masked-quiz"
   private let userDefaults: UserDefaults
+
+  // MARK: - Cache
+  private var answersCache: QuizAnswers?
+  private var answersCacheTimestamp: Date?
+  private let cacheExpirationInterval: TimeInterval = 43200  // 12時間（answers.jsonは1日1回更新）
 
   private static let scoreKey = "proposal_scores"
 
@@ -87,14 +96,9 @@ actor QuizRepositoryImpl: QuizRepository {
   // MARK: - Quiz Management
 
   func fetchQuiz(for proposalId: String) async throws -> [Quiz] {
-    let input = GetObjectInput(bucket: quizBucket, key: "answers.json")
-    let contents = try await s3Client.getObject(input: input)
-    let binary = try? await contents.body?.readData()
-    guard let binary else {
-      throw QuizError.invalidResponse
-    }
+    // 共通メソッドでanswers.jsonを取得（キャッシュ利用）
+    let answers = try await fetchAnswersJson()
 
-    let answers = try JSONDecoder().decode(QuizAnswers.self, from: binary)
     guard let proposalAnswers = answers.answers[proposalId] else {
       throw QuizError.proposalNotFound
     }
@@ -122,7 +126,46 @@ actor QuizRepositoryImpl: QuizRepository {
     }
   }
 
+  func getAllQuizCounts() async throws -> [String: Int] {
+    // 共通メソッドでanswers.jsonを取得（キャッシュ利用）
+    let answers = try await fetchAnswersJson()
+
+    // クイズ数マップを生成
+    let quizCounts = answers.answers.mapValues { $0.count }
+
+    return quizCounts
+  }
+
   // MARK: - Private Helpers
+
+  /// Fetch answers.json from R2 with caching
+  /// - Returns: Decoded QuizAnswers object
+  private func fetchAnswersJson() async throws -> QuizAnswers {
+    // キャッシュチェック
+    if let cache = answersCache,
+      let timestamp = answersCacheTimestamp,
+      Date().timeIntervalSince(timestamp) < cacheExpirationInterval
+    {
+      return cache
+    }
+
+    // R2から取得
+    let input = GetObjectInput(bucket: quizBucket, key: "answers.json")
+    let contents = try await s3Client.getObject(input: input)
+    let binary = try? await contents.body?.readData()
+    guard let binary else {
+      throw QuizError.invalidResponse
+    }
+
+    // JSONデコード
+    let answers = try JSONDecoder().decode(QuizAnswers.self, from: binary)
+
+    // キャッシュ更新
+    answersCache = answers
+    answersCacheTimestamp = Date()
+
+    return answers
+  }
 
   private func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
     try await run(self)
