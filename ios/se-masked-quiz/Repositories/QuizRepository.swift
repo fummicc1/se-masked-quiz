@@ -28,6 +28,10 @@ protocol QuizRepository: Actor {
 
   /// Reset score for a specific proposal
   func resetScore(for proposalId: String) async
+
+  /// Get all quiz counts for all proposals
+  /// - Returns: Dictionary mapping proposal IDs to their quiz counts
+  func getAllQuizCounts() async throws -> [String: Int]
 }
 
 // MARK: - Repository Implementation
@@ -36,6 +40,11 @@ actor QuizRepositoryImpl: QuizRepository {
   private let s3Client: S3Client
   private let quizBucket = "se-masked-quiz"
   private let userDefaults: UserDefaults
+
+  // MARK: - Cache
+  private var quizCountsCache: [String: Int]?
+  private var quizCountsCacheTimestamp: Date?
+  private let cacheExpirationInterval: TimeInterval = 3600  // 1時間
 
   private static let scoreKey = "proposal_scores"
 
@@ -120,6 +129,36 @@ actor QuizRepositoryImpl: QuizRepository {
     if let encoded = try? JSONEncoder().encode(scores) {
       userDefaults.set(encoded, forKey: Self.scoreKey)
     }
+  }
+
+  func getAllQuizCounts() async throws -> [String: Int] {
+    // キャッシュチェック
+    if let cache = quizCountsCache,
+      let timestamp = quizCountsCacheTimestamp,
+      Date().timeIntervalSince(timestamp) < cacheExpirationInterval
+    {
+      return cache
+    }
+
+    // answers.jsonを取得（fetchQuiz(for:)と同じパターン）
+    let input = GetObjectInput(bucket: quizBucket, key: "answers.json")
+    let contents = try await s3Client.getObject(input: input)
+    let binary = try? await contents.body?.readData()
+    guard let binary else {
+      throw QuizError.invalidResponse
+    }
+
+    // JSONデコード
+    let answers = try JSONDecoder().decode(QuizAnswers.self, from: binary)
+
+    // クイズ数マップを生成
+    let quizCounts = answers.answers.mapValues { $0.count }
+
+    // キャッシュ更新
+    quizCountsCache = quizCounts
+    quizCountsCacheTimestamp = Date()
+
+    return quizCounts
   }
 
   // MARK: - Private Helpers
