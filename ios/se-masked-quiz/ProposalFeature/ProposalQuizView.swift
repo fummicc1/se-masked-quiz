@@ -9,12 +9,18 @@ import SwiftUI
 
 struct ProposalQuizView: View {
 
+  @Environment(\.llmService) var llmService
+  @Environment(\.modelDownloadService) var modelDownloadService
+
   @State private var modalWebUrl: URL?
   @StateObject var quizViewModel: QuizViewModel
   @State private var isAppeared = false
   @State private var showsReviewDashboard = false
+  @State private var showsLLMGenerationSheet = false
+  @State private var isModelAvailable = false
 
   let proposal: SwiftEvolution
+  private let modelName = "mlx-community/Qwen3-1.7B-8bit"
 
   init(
     proposal: SwiftEvolution,
@@ -73,10 +79,21 @@ struct ProposalQuizView: View {
     #endif
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
-        Button {
-          showsReviewDashboard = true
-        } label: {
-          Image(systemName: "chart.bar.xaxis")
+        HStack(spacing: 16) {
+          // LLMクイズ生成ボタン
+          Button {
+            showsLLMGenerationSheet = true
+          } label: {
+            Image(systemName: "wand.and.stars")
+          }
+          .disabled(!isModelAvailable)
+
+          // ReviewDashboardボタン
+          Button {
+            showsReviewDashboard = true
+          } label: {
+            Image(systemName: "chart.bar.xaxis")
+          }
         }
       }
     }
@@ -92,8 +109,18 @@ struct ProposalQuizView: View {
           }
       }
     }
+    .sheet(isPresented: $showsLLMGenerationSheet) {
+      LLMQuizGenerationSheet(
+        proposal: proposal,
+        quizViewModel: quizViewModel,
+        llmService: llmService,
+        onDismiss: { showsLLMGenerationSheet = false }
+      )
+    }
     .task {
       await quizViewModel.configure()
+      // モデルダウンロード状態を確認
+      isModelAvailable = await modelDownloadService.isModelDownloaded(named: modelName)
     }
     .alert("クイズをリセット", isPresented: $quizViewModel.isShowingResetAlert) {
       Button("キャンセル", role: .cancel) {}

@@ -15,7 +15,7 @@ struct ModelDownloadView: View {
   @State private var modelSize: Int64 = 0
   @State private var errorMessage: String?
 
-  private let modelName = "robbiemu/MobileLLM-R1-950M-MLX"
+  private let modelName = "mlx-community/Qwen3-1.7B-8bit"
 
   var body: some View {
     VStack(spacing: 20) {
@@ -45,7 +45,7 @@ struct ModelDownloadView: View {
       Text("LLMモデル")
         .font(.headline)
 
-      Text("MobileLLM 950M")
+      Text("Qwen3 4B (4-bit)")
         .font(.subheadline)
         .foregroundColor(.secondary)
     }

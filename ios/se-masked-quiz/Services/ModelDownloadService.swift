@@ -140,9 +140,9 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   }
 
   func getModelSize(named modelName: String) async throws -> Int64 {
-    // MobileLLM-R1-950M 4-bit quantized model のサイズ（約500MB）
+    // Qwen3 1.7B 4-bit quantized model のサイズ（約850MB）
     // 実際のサイズは HEAD リクエストで取得すべきだが、ここでは固定値を返す
-    return 500_000_000  // 500MB
+    return 850_000_000  // 850MB
   }
 
   // MARK: - Private Methods
