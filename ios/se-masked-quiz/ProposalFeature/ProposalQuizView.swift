@@ -12,6 +12,7 @@ struct ProposalQuizView: View {
   @State private var modalWebUrl: URL?
   @StateObject var quizViewModel: QuizViewModel
   @State private var isAppeared = false
+  @State private var showsReviewDashboard = false
 
   let proposal: SwiftEvolution
 
@@ -70,6 +71,27 @@ struct ProposalQuizView: View {
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
     #endif
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          showsReviewDashboard = true
+        } label: {
+          Image(systemName: "chart.bar.xaxis")
+        }
+      }
+    }
+    .sheet(isPresented: $showsReviewDashboard) {
+      NavigationStack {
+        ReviewDashboardView(proposalId: proposal.proposalId)
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button("閉じる") {
+                showsReviewDashboard = false
+              }
+            }
+          }
+      }
+    }
     .task {
       await quizViewModel.configure()
     }

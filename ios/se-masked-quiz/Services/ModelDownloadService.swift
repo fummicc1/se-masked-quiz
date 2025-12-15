@@ -51,6 +51,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   private var downloadTask: URLSessionDownloadTask?
   private var progressHandler: ((Double) -> Void)?
   private var downloadContinuation: CheckedContinuation<URL, Error>?
+  private var currentModelName: String?  // ダウンロード中のモデル名を保持
 
   private static let modelsDirectory = "MLModels"
   private static let baseURL = "https://huggingface.co"
@@ -79,6 +80,10 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     }
 
     self.progressHandler = progressHandler
+    self.currentModelName = modelName  // モデル名を保持
+
+    // 保存先ディレクトリを事前に作成
+    _ = try getLocalModelURL(for: modelName)
 
     // ダウンロードURLを構築
     let downloadURL = buildDownloadURL(for: modelName)
@@ -98,6 +103,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   func cancelDownload() async {
     downloadTask?.cancel()
     downloadTask = nil
+    currentModelName = nil
     downloadContinuation?.resume(throwing: ModelDownloadError.cancelled)
     downloadContinuation = nil
   }
@@ -206,6 +212,10 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   }
 
   private func handleDownloadCompletion(location: URL?, error: Error?) async {
+    defer {
+      currentModelName = nil
+    }
+
     if let error = error {
       downloadContinuation?.resume(throwing: ModelDownloadError.networkError(error))
       downloadContinuation = nil
@@ -222,7 +232,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
 
     do {
       // ダウンロードしたファイルを最終的な場所に移動
-      guard let modelName = downloadTask?.originalRequest?.url?.pathComponents.dropLast(3).joined(separator: "/") else {
+      guard let modelName = currentModelName else {
         throw ModelDownloadError.networkError(
           NSError(domain: "ModelDownload", code: -4, userInfo: [NSLocalizedDescriptionKey: "Cannot determine model name"])
         )
