@@ -52,6 +52,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   private var progressHandler: ((Double) -> Void)?
   private var downloadContinuation: CheckedContinuation<URL, Error>?
   private var currentModelName: String?  // ダウンロード中のモデル名を保持
+  private nonisolated(unsafe) var destinationURL: URL?  // デリゲートからアクセス可能な保存先URL
 
   private static let modelsDirectory = "MLModels"
   private static let baseURL = "https://huggingface.co"
@@ -82,8 +83,9 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     self.progressHandler = progressHandler
     self.currentModelName = modelName  // モデル名を保持
 
-    // 保存先ディレクトリを事前に作成
-    _ = try getLocalModelURL(for: modelName)
+    // 保存先ディレクトリを事前に作成し、URLを保持
+    let localURL = try getLocalModelURL(for: modelName)
+    self.destinationURL = localURL
 
     // ダウンロードURLを構築
     let downloadURL = buildDownloadURL(for: modelName)
@@ -104,6 +106,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     downloadTask?.cancel()
     downloadTask = nil
     currentModelName = nil
+    destinationURL = nil
     downloadContinuation?.resume(throwing: ModelDownloadError.cancelled)
     downloadContinuation = nil
   }
@@ -181,8 +184,36 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     downloadTask: URLSessionDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
-    Task { @MainActor in
-      await handleDownloadCompletion(location: location, error: nil)
+    // 重要: URLSessionは、このメソッドが戻ると一時ファイルを削除する
+    // そのため、ファイルの移動は同期的に行う必要がある
+    guard let destination = destinationURL else {
+      Task {
+        await handleDownloadError(
+          ModelDownloadError.networkError(
+            NSError(domain: "ModelDownload", code: -4, userInfo: [NSLocalizedDescriptionKey: "Destination URL is nil"])
+          )
+        )
+      }
+      return
+    }
+
+    do {
+      // 既存ファイルがあれば削除
+      if FileManager.default.fileExists(atPath: destination.path) {
+        try FileManager.default.removeItem(at: destination)
+      }
+
+      // 同期的にファイルを移動
+      try FileManager.default.moveItem(at: location, to: destination)
+
+      // 成功を通知
+      Task {
+        await handleDownloadSuccess(destination)
+      }
+    } catch {
+      Task {
+        await handleDownloadError(ModelDownloadError.fileSystemError(error))
+      }
     }
   }
 
@@ -191,9 +222,9 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     task: URLSessionTask,
     didCompleteWithError error: Error?
   ) {
-    Task { @MainActor in
-      if let error = error {
-        await handleDownloadCompletion(location: nil, error: error)
+    if let error = error {
+      Task {
+        await handleDownloadError(ModelDownloadError.networkError(error))
       }
     }
   }
@@ -206,53 +237,23 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     totalBytesExpectedToWrite: Int64
   ) {
     let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-    Task { @MainActor in
+    Task {
       await notifyProgress(progress)
     }
   }
 
-  private func handleDownloadCompletion(location: URL?, error: Error?) async {
-    defer {
-      currentModelName = nil
-    }
+  private func handleDownloadSuccess(_ url: URL) async {
+    currentModelName = nil
+    destinationURL = nil
+    downloadContinuation?.resume(returning: url)
+    downloadContinuation = nil
+  }
 
-    if let error = error {
-      downloadContinuation?.resume(throwing: ModelDownloadError.networkError(error))
-      downloadContinuation = nil
-      return
-    }
-
-    guard let location = location else {
-      downloadContinuation?.resume(throwing: ModelDownloadError.networkError(
-        NSError(domain: "ModelDownload", code: -3, userInfo: [NSLocalizedDescriptionKey: "Download location is nil"])
-      ))
-      downloadContinuation = nil
-      return
-    }
-
-    do {
-      // ダウンロードしたファイルを最終的な場所に移動
-      guard let modelName = currentModelName else {
-        throw ModelDownloadError.networkError(
-          NSError(domain: "ModelDownload", code: -4, userInfo: [NSLocalizedDescriptionKey: "Cannot determine model name"])
-        )
-      }
-
-      let destinationURL = try getLocalModelURL(for: modelName)
-
-      // 既存ファイルがあれば削除
-      if FileManager.default.fileExists(atPath: destinationURL.path) {
-        try FileManager.default.removeItem(at: destinationURL)
-      }
-
-      try FileManager.default.moveItem(at: location, to: destinationURL)
-
-      downloadContinuation?.resume(returning: destinationURL)
-      downloadContinuation = nil
-    } catch {
-      downloadContinuation?.resume(throwing: ModelDownloadError.fileSystemError(error))
-      downloadContinuation = nil
-    }
+  private func handleDownloadError(_ error: Error) async {
+    currentModelName = nil
+    destinationURL = nil
+    downloadContinuation?.resume(throwing: error)
+    downloadContinuation = nil
   }
 
   private func notifyProgress(_ progress: Double) async {
