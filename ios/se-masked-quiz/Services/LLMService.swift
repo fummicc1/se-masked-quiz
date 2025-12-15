@@ -213,10 +213,11 @@ actor LLMServiceImpl: LLMService {
 
     let result = try await container.perform { context in
       let input = UserInput(
-        prompt: prompt,
-        processing: .init(
-          systemPrompt: QuizPromptTemplate.systemPrompt
-        )
+        prompt: UserInput.Prompt.chat([
+          .system(QuizPromptTemplate.systemPrompt),
+          .user(prompt)
+        ]),
+        processing: .init()
       )
       let lmInput = try await context.processor.prepare(input: input)
 
