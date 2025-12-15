@@ -15,12 +15,17 @@ struct ProposalQuizView: View {
 
   let proposal: SwiftEvolution
 
-  init(proposal: SwiftEvolution, quizRepository: any QuizRepository) {
+  init(
+    proposal: SwiftEvolution,
+    quizRepository: any QuizRepository,
+    srsScheduler: any SRSScheduler
+  ) {
     self.proposal = proposal
     _quizViewModel = StateObject(
       wrappedValue: QuizViewModel(
         proposalId: proposal.proposalId,
-        quizRepository: quizRepository
+        quizRepository: quizRepository,
+        srsScheduler: srsScheduler
       )
     )
   }

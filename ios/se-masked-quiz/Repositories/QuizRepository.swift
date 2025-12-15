@@ -32,6 +32,32 @@ protocol QuizRepository: Actor {
   /// Get all quiz counts for all proposals
   /// - Returns: Dictionary mapping proposal IDs to their quiz counts
   func getAllQuizCounts() async throws -> [String: Int]
+
+  // Issue #12: LLM生成クイズ管理
+  /// LLM生成クイズを保存
+  /// - Parameters:
+  ///   - quizzes: 保存するクイズの配列
+  ///   - proposalId: 提案ID
+  func saveLLMGeneratedQuizzes(_ quizzes: [Quiz], for proposalId: String) async
+
+  /// LLM生成クイズを取得
+  /// - Parameter proposalId: 提案ID
+  /// - Returns: LLM生成クイズの配列（存在しない場合は空配列）
+  func getLLMGeneratedQuizzes(for proposalId: String) async -> [Quiz]
+
+  /// R2とLLM生成クイズを統合して取得
+  /// - Parameter proposalId: 提案ID
+  /// - Returns: R2クイズとLLM生成クイズを合わせた配列
+  func fetchAllQuizzes(for proposalId: String) async throws -> [Quiz]
+
+  /// LLM生成クイズが存在するかチェック
+  /// - Parameter proposalId: 提案ID
+  /// - Returns: LLM生成クイズが存在する場合true
+  func hasLLMGeneratedQuizzes(for proposalId: String) async -> Bool
+
+  /// LLM生成クイズを削除
+  /// - Parameter proposalId: 提案ID
+  func deleteLLMGeneratedQuizzes(for proposalId: String) async
 }
 
 // MARK: - Repository Implementation
@@ -47,6 +73,7 @@ actor QuizRepositoryImpl: QuizRepository {
   private let cacheExpirationInterval: TimeInterval = 43200  // 12時間（answers.jsonは1日1回更新）
 
   private static let scoreKey = "proposal_scores"
+  private static let llmQuizzesKey = "llm_generated_quizzes"  // Issue #12: LLM生成クイズ用のキー
 
   init(
     cloudflareR2Endpoint: String,
@@ -136,6 +163,58 @@ actor QuizRepositoryImpl: QuizRepository {
     return quizCounts
   }
 
+  // MARK: - LLM Generated Quiz Management (Issue #12)
+
+  func saveLLMGeneratedQuizzes(_ quizzes: [Quiz], for proposalId: String) async {
+    var allLLMQuizzes = await getAllLLMGeneratedQuizzes()
+    allLLMQuizzes[proposalId] = quizzes
+
+    if let encoded = try? JSONEncoder().encode(allLLMQuizzes) {
+      userDefaults.set(encoded, forKey: Self.llmQuizzesKey)
+    }
+  }
+
+  func getLLMGeneratedQuizzes(for proposalId: String) async -> [Quiz] {
+    let allLLMQuizzes = await getAllLLMGeneratedQuizzes()
+    return allLLMQuizzes[proposalId] ?? []
+  }
+
+  func fetchAllQuizzes(for proposalId: String) async throws -> [Quiz] {
+    // R2からのクイズを取得
+    let r2Quizzes = try await fetchQuiz(for: proposalId)
+
+    // LLM生成クイズを取得
+    let llmQuizzes = await getLLMGeneratedQuizzes(for: proposalId)
+
+    // 統合して返す（R2クイズが先、LLM生成クイズが後）
+    var allQuizzes = r2Quizzes
+
+    // LLM生成クイズのindexを調整（R2クイズの最大index + 1から開始）
+    let maxR2Index = r2Quizzes.map { $0.index }.max() ?? -1
+    let adjustedLLMQuizzes = llmQuizzes.enumerated().map { offset, quiz in
+      var adjustedQuiz = quiz
+      adjustedQuiz.index = maxR2Index + 1 + offset
+      return adjustedQuiz
+    }
+
+    allQuizzes.append(contentsOf: adjustedLLMQuizzes)
+    return allQuizzes
+  }
+
+  func hasLLMGeneratedQuizzes(for proposalId: String) async -> Bool {
+    let llmQuizzes = await getLLMGeneratedQuizzes(for: proposalId)
+    return !llmQuizzes.isEmpty
+  }
+
+  func deleteLLMGeneratedQuizzes(for proposalId: String) async {
+    var allLLMQuizzes = await getAllLLMGeneratedQuizzes()
+    allLLMQuizzes.removeValue(forKey: proposalId)
+
+    if let encoded = try? JSONEncoder().encode(allLLMQuizzes) {
+      userDefaults.set(encoded, forKey: Self.llmQuizzesKey)
+    }
+  }
+
   // MARK: - Private Helpers
 
   /// Fetch answers.json from R2 with caching
@@ -165,6 +244,17 @@ actor QuizRepositoryImpl: QuizRepository {
     answersCacheTimestamp = Date()
 
     return answers
+  }
+
+  /// Get all LLM-generated quizzes from UserDefaults
+  /// - Returns: Dictionary mapping proposal IDs to their LLM-generated quizzes
+  private func getAllLLMGeneratedQuizzes() async -> [String: [Quiz]] {
+    guard let data = userDefaults.data(forKey: Self.llmQuizzesKey),
+      let quizzes = try? JSONDecoder().decode([String: [Quiz]].self, from: data)
+    else {
+      return [:]
+    }
+    return quizzes
   }
 
   private func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
