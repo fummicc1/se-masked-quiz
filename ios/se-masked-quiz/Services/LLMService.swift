@@ -19,7 +19,7 @@ import MLXLMCommon
 /// ローカルLLMサービス
 protocol LLMService: Actor {
   /// モデルを読み込み
-  /// - Parameter modelId: Hugging FaceモデルID (例: "robbiemu/MobileLLM-R1-950M-MLX")
+  /// - Parameter modelId: Hugging FaceモデルID
   func loadModel(id modelId: String) async throws
 
   /// モデルをアンロード
@@ -31,24 +31,16 @@ protocol LLMService: Actor {
   /// クイズを生成
   /// - Parameters:
   ///   - content: Swift Evolution提案のコンテンツ
+  ///   - proposalId: 提案ID
   ///   - difficulty: クイズ難易度
   ///   - count: 生成するクイズ数
-  /// - Returns: 生成されたクイズの配列
+  /// - Returns: 生成されたLLMクイズの配列
   func generateQuizzes(
     from content: String,
+    proposalId: String,
     difficulty: QuizDifficulty,
     count: Int
-  ) async throws -> [Quiz]
-
-  /// 複数提案のクイズをバッチ生成
-  /// - Parameters:
-  ///   - proposals: Swift Evolution提案の配列
-  ///   - progressHandler: 進捗ハンドラー (0.0〜1.0)
-  /// - Returns: 提案IDをキーとしたクイズ配列の辞書
-  func batchGenerateQuizzes(
-    for proposals: [SwiftEvolution],
-    progressHandler: @escaping (Double) -> Void
-  ) async throws -> [String: [Quiz]]
+  ) async throws -> [LLMQuiz]
 }
 
 // MARK: - LLMService Implementation
@@ -80,7 +72,6 @@ actor LLMServiceImpl: LLMService {
       modelContainer = try await LLMModelFactory.shared.loadContainer(
         configuration: configuration,
         progressHandler: { progress in
-          // ロード進捗（必要に応じてUIに反映）
           print("Model loading: \(Int(progress.fractionCompleted * 100))%")
         }
       )
@@ -106,9 +97,10 @@ actor LLMServiceImpl: LLMService {
 
   func generateQuizzes(
     from content: String,
+    proposalId: String,
     difficulty: QuizDifficulty,
     count: Int
-  ) async throws -> [Quiz] {
+  ) async throws -> [LLMQuiz] {
     guard modelLoaded else {
       throw LLMServiceError.modelNotLoaded
     }
@@ -134,73 +126,26 @@ actor LLMServiceImpl: LLMService {
     // JSON応答をパース
     let response = try QuizPromptTemplate.parseResponse(generatedText)
 
-    // 検証とQuizオブジェクトへの変換
-    var quizzes: [Quiz] = []
-    for (index, item) in response.quizzes.enumerated() {
+    // 検証とLLMQuizオブジェクトへの変換
+    var quizzes: [LLMQuiz] = []
+    for item in response.quizzes {
       guard QuizPromptTemplate.validate(item) else {
         continue  // 無効なクイズはスキップ
       }
 
-      // 選択肢をシャッフル（正解と誤答を混ぜる）
-      var choices = [item.correctAnswer] + item.wrongAnswers
-      choices.shuffle()
-
-      let quiz = Quiz(
-        id: UUID().uuidString,
-        proposalId: "",  // 呼び出し側で設定
-        index: index,
-        answer: item.correctAnswer,
-        choices: choices,
+      let quiz = LLMQuiz(
+        proposalId: proposalId,
         question: item.question,
+        correctAnswer: item.correctAnswer,
+        wrongAnswers: item.wrongAnswers,
         explanation: item.explanation,
-        source: .llmGenerated
+        conceptTested: item.conceptTested,
+        difficulty: difficulty
       )
       quizzes.append(quiz)
     }
 
     return quizzes
-  }
-
-  func batchGenerateQuizzes(
-    for proposals: [SwiftEvolution],
-    progressHandler: @escaping (Double) -> Void
-  ) async throws -> [String: [Quiz]] {
-    guard modelLoaded else {
-      throw LLMServiceError.modelNotLoaded
-    }
-
-    var result: [String: [Quiz]] = [:]
-    let totalCount = Double(proposals.count)
-
-    for (index, proposal) in proposals.enumerated() {
-      do {
-        // 提案の内容からクイズを生成（HTMLコンテンツを使用）
-        let quizzes = try await generateQuizzes(
-          from: proposal.content,
-          difficulty: .intermediate,
-          count: 3
-        )
-
-        // proposalIdを設定
-        let quizzesWithProposalId = quizzes.map { quiz in
-          var updatedQuiz = quiz
-          updatedQuiz.proposalId = proposal.proposalId
-          return updatedQuiz
-        }
-
-        result[proposal.proposalId] = quizzesWithProposalId
-      } catch {
-        // 個別の提案でエラーが発生しても続行
-        print("Failed to generate quizzes for \(proposal.proposalId): \(error)")
-        result[proposal.proposalId] = []
-      }
-
-      // 進捗を報告
-      let progress = Double(index + 1) / totalCount
-      progressHandler(progress)
-    }
-
-    return result
   }
 
   // MARK: - Private Methods
@@ -231,7 +176,6 @@ actor LLMServiceImpl: LLMService {
         parameters: generateParams,
         context: context
       ) { tokens in
-        // 最大トークン数に達したら停止
         if tokens.count >= maxTokens {
           return .stop
         }

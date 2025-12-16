@@ -2,6 +2,7 @@ import SwiftUI
 
 @MainActor
 final class QuizViewModel: ObservableObject {
+  // MARK: - Mask Quiz (R2) Properties
   @Published var currentQuiz: Quiz?
   @Published var isShowingQuiz = false
   @Published var selectedAnswer: [Int: String] = [:]
@@ -12,12 +13,19 @@ final class QuizViewModel: ObservableObject {
   @Published var isShowingResetAlert = false
   @Published var isConfigured: Bool = false
 
-  // Issue #12: SRS関連のプロパティ
+  // MARK: - LLM Quiz Properties (Issue #12)
+  @Published var allLLMQuiz: [LLMQuiz] = []
+  @Published var currentLLMQuiz: LLMQuiz?
+  @Published var llmQuizScore: LLMQuizScore?
+  @Published var selectedLLMAnswer: [String: String] = [:]  // quizId -> answer
+  @Published var isLLMCorrect: [String: Bool] = [:]  // quizId -> isCorrect
+
+  // MARK: - SRS Properties (Issue #12)
   @Published var dailyReviewQueue: DailyReviewQueue?
   @Published var reviewStats: ReviewStats?
-  @Published var isSRSEnabled: Bool = true  // SRS機能の有効/無効フラグ
+  @Published var isSRSEnabled: Bool = true
 
-  // Issue #12: LLM関連のプロパティ
+  // MARK: - LLM Generation State
   @Published var isGeneratingQuizzes: Bool = false
   @Published var quizGenerationProgress: Double = 0.0
   @Published var quizGenerationError: String?
@@ -45,7 +53,7 @@ final class QuizViewModel: ObservableObject {
   ///   - difficulty: クイズ難易度
   ///   - count: 生成するクイズ数
   ///   - llmService: LLMサービス
-  ///   - modelId: Hugging FaceモデルID (例: "robbiemu/MobileLLM-R1-950M-MLX")
+  ///   - modelId: Hugging FaceモデルID
   func generateQuizzesWithLLM(
     content: String,
     difficulty: QuizDifficulty,
@@ -67,20 +75,22 @@ final class QuizViewModel: ObservableObject {
 
       quizGenerationProgress = 0.3
 
-      // クイズを生成
+      // LLMクイズを生成（LLMQuiz型で返される）
       let generatedQuizzes = try await llmService.generateQuizzes(
         from: content,
+        proposalId: proposalId,
         difficulty: difficulty,
         count: count
       )
 
       quizGenerationProgress = 0.8
 
-      // 生成されたクイズを保存
-      await quizRepository.saveLLMGeneratedQuizzes(generatedQuizzes, for: proposalId)
+      // 生成されたLLMクイズを保存
+      await quizRepository.saveLLMQuizzes(generatedQuizzes, for: proposalId)
 
       quizGenerationProgress = 1.0
       hasLLMQuizzes = true
+      allLLMQuiz = generatedQuizzes
 
       // クイズリストを再読み込み
       await configure()
@@ -94,31 +104,44 @@ final class QuizViewModel: ObservableObject {
 
   /// LLM生成クイズを削除
   func deleteLLMQuizzes() async {
-    await quizRepository.deleteLLMGeneratedQuizzes(for: proposalId)
+    await quizRepository.deleteLLMQuizzes(for: proposalId)
     hasLLMQuizzes = false
+    allLLMQuiz = []
+    llmQuizScore = nil
+    selectedLLMAnswer = [:]
+    isLLMCorrect = [:]
     await configure()
   }
 
   func configure() async {
     do {
-      // Issue #12: R2クイズとLLM生成クイズを統合して取得
-      allQuiz = try await quizRepository.fetchAllQuizzes(for: proposalId)
+      // R2マスククイズを取得
+      allQuiz = try await quizRepository.fetchQuiz(for: proposalId)
 
-      // LLM生成クイズの存在チェック
-      hasLLMQuizzes = await quizRepository.hasLLMGeneratedQuizzes(for: proposalId)
+      // LLM生成クイズを別途取得
+      allLLMQuiz = await quizRepository.getLLMQuizzes(for: proposalId)
+      hasLLMQuizzes = await quizRepository.hasLLMQuizzes(for: proposalId)
 
       isShowingQuiz = true
       selectedAnswer = [:]
       isCorrect = [:]
       answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.index, $0.answer) })
 
-      // Load existing score
+      // マスククイズのスコアを読み込み
       if let existingScore = await quizRepository.getScore(for: proposalId) {
         currentScore = existingScore
-        // Restore previous answers and results
         for result in existingScore.questionResults {
           selectedAnswer[result.index] = result.userAnswer
           isCorrect[result.index] = result.isCorrect
+        }
+      }
+
+      // LLMクイズのスコアを読み込み
+      if let existingLLMScore = await quizRepository.getLLMQuizScore(for: proposalId) {
+        llmQuizScore = existingLLMScore
+        for result in existingLLMScore.results {
+          selectedLLMAnswer[result.quizId] = result.userAnswer
+          isLLMCorrect[result.quizId] = result.isCorrect
         }
       }
 
@@ -246,5 +269,79 @@ final class QuizViewModel: ObservableObject {
         print("Failed to delete SRS schedules:", error)
       }
     }
+  }
+
+  // MARK: - LLM Quiz Interactions
+
+  /// LLMクイズを表示
+  func showLLMQuizSelections(index: Int) {
+    guard isConfigured, index < allLLMQuiz.count else { return }
+    currentLLMQuiz = allLLMQuiz[index]
+  }
+
+  /// LLMクイズの回答を選択
+  func selectLLMAnswer(_ answer: String) {
+    guard let quiz = currentLLMQuiz, isLLMCorrect[quiz.id] == nil else { return }
+
+    selectedLLMAnswer[quiz.id] = answer
+    let correct = answer == quiz.correctAnswer
+    isLLMCorrect[quiz.id] = correct
+    updateLLMQuizScore()
+
+    // SRS機能が有効な場合、復習スケジュールを更新
+    if isSRSEnabled {
+      Task {
+        do {
+          let quality = correct ? 5 : 0
+          try await srsScheduler.updateScheduleAfterReview(
+            quizId: quiz.id,
+            proposalId: quiz.proposalId,
+            quality: quality
+          )
+          reviewStats = try await srsScheduler.getReviewStats(for: proposalId)
+        } catch {
+          print("Failed to update SRS schedule for LLM quiz:", error)
+        }
+      }
+    }
+  }
+
+  /// LLMクイズを閉じる
+  func dismissLLMQuiz() {
+    currentLLMQuiz = nil
+  }
+
+  /// LLMクイズスコアを更新
+  private func updateLLMQuizScore() {
+    let results = allLLMQuiz.compactMap { quiz -> LLMQuizResult? in
+      guard let userAnswer = selectedLLMAnswer[quiz.id],
+            let correct = isLLMCorrect[quiz.id]
+      else { return nil }
+
+      return LLMQuizResult(
+        quizId: quiz.id,
+        isCorrect: correct,
+        correctAnswer: quiz.correctAnswer,
+        userAnswer: userAnswer
+      )
+    }
+
+    let newScore = LLMQuizScore(
+      proposalId: proposalId,
+      results: results
+    )
+
+    llmQuizScore = newScore
+    Task {
+      await quizRepository.saveLLMQuizScore(newScore)
+    }
+  }
+
+  /// LLMクイズをリセット
+  func resetLLMQuiz(for proposalId: String) async {
+    await quizRepository.resetLLMQuizScore(for: proposalId)
+    selectedLLMAnswer = [:]
+    isLLMCorrect = [:]
+    llmQuizScore = nil
   }
 }
