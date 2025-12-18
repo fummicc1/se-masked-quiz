@@ -10,6 +10,7 @@ import SwiftUI
 struct ProposalListScreen: View {
   @Environment(\.seRepository) var repository
   @Environment(\.quizRepository) var quizRepository
+  @Environment(\.srsScheduler) var srsScheduler
   @State private var proposals: AsyncProposals = .idle
   @State private var modalWebUrl: URL?
   @State private var offset: Int = 0
@@ -57,7 +58,8 @@ struct ProposalListScreen: View {
         .navigationDestination(for: SwiftEvolution.self) { proposal in
           ProposalQuizView(
             proposal: proposal,
-            quizRepository: quizRepository
+            quizRepository: quizRepository,
+            srsScheduler: srsScheduler
           )
         }
         .toolbar {
