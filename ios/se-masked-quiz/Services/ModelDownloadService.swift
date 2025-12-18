@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import CryptoKit
+import os
 
 // MARK: - ModelDownloadService Protocol
 
@@ -52,7 +53,8 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   private var progressHandler: ((Double) -> Void)?
   private var downloadContinuation: CheckedContinuation<URL, Error>?
   private var currentModelName: String?  // ダウンロード中のモデル名を保持
-  private nonisolated(unsafe) var destinationURL: URL?  // デリゲートからアクセス可能な保存先URL
+  /// スレッドセーフな保存先URL（デリゲートからもアクセス可能）
+  private let destinationURLLock = OSAllocatedUnfairLock<URL?>(initialState: nil)
 
   private static let modelsDirectory = "MLModels"
   private static let baseURL = "https://huggingface.co"
@@ -85,7 +87,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
 
     // 保存先ディレクトリを事前に作成し、URLを保持
     let localURL = try getLocalModelURL(for: modelName)
-    self.destinationURL = localURL
+    destinationURLLock.withLock { $0 = localURL }
 
     // ダウンロードURLを構築
     let downloadURL = buildDownloadURL(for: modelName)
@@ -106,7 +108,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     downloadTask?.cancel()
     downloadTask = nil
     currentModelName = nil
-    destinationURL = nil
+    destinationURLLock.withLock { $0 = nil }
     downloadContinuation?.resume(throwing: ModelDownloadError.cancelled)
     downloadContinuation = nil
   }
@@ -122,7 +124,22 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
     guard let localURL = try? getLocalModelURL(for: modelName) else {
       return false
     }
-    return FileManager.default.fileExists(atPath: localURL.path)
+
+    let fileManager = FileManager.default
+    let path = localURL.path
+
+    guard fileManager.fileExists(atPath: path) else {
+      return false
+    }
+
+    // ファイルサイズが0より大きいか確認（破損ファイル対策）
+    if let attributes = try? fileManager.attributesOfItem(atPath: path),
+       let fileSize = attributes[.size] as? Int64,
+       fileSize > 0 {
+      return true
+    }
+
+    return false
   }
 
   func getAvailableStorage() async throws -> Int64 {
@@ -186,7 +203,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   ) {
     // 重要: URLSessionは、このメソッドが戻ると一時ファイルを削除する
     // そのため、ファイルの移動は同期的に行う必要がある
-    guard let destination = destinationURL else {
+    guard let destination = destinationURLLock.withLock({ $0 }) else {
       Task {
         await handleDownloadError(
           ModelDownloadError.networkError(
@@ -197,14 +214,34 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
       return
     }
 
+    let fileManager = FileManager.default
+    let parentDir = destination.deletingLastPathComponent()
+
     do {
+      // ディレクトリが存在しない場合は作成（再起動後にディレクトリが消えている可能性に対応）
+      if !fileManager.fileExists(atPath: parentDir.path) {
+        try fileManager.createDirectory(at: parentDir, withIntermediateDirectories: true)
+      }
+
       // 既存ファイルがあれば削除
-      if FileManager.default.fileExists(atPath: destination.path) {
-        try FileManager.default.removeItem(at: destination)
+      if fileManager.fileExists(atPath: destination.path) {
+        try fileManager.removeItem(at: destination)
       }
 
       // 同期的にファイルを移動
-      try FileManager.default.moveItem(at: location, to: destination)
+      try fileManager.moveItem(at: location, to: destination)
+
+      // 検証: ファイルが実際に存在するか確認
+      guard fileManager.fileExists(atPath: destination.path) else {
+        Task {
+          await handleDownloadError(
+            ModelDownloadError.fileSystemError(
+              NSError(domain: "ModelDownload", code: -5, userInfo: [NSLocalizedDescriptionKey: "ファイル移動後の検証に失敗しました"])
+            )
+          )
+        }
+        return
+      }
 
       // 成功を通知
       Task {
@@ -244,14 +281,14 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
 
   private func handleDownloadSuccess(_ url: URL) async {
     currentModelName = nil
-    destinationURL = nil
+    destinationURLLock.withLock { $0 = nil }
     downloadContinuation?.resume(returning: url)
     downloadContinuation = nil
   }
 
   private func handleDownloadError(_ error: Error) async {
     currentModelName = nil
-    destinationURL = nil
+    destinationURLLock.withLock { $0 = nil }
     downloadContinuation?.resume(throwing: error)
     downloadContinuation = nil
   }
