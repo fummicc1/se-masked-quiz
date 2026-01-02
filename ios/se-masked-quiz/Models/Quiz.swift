@@ -1,14 +1,23 @@
 import Foundation
 
+/// R2からのマスク穴埋めクイズのドメインモデル
+/// HTML内のマスクされた単語を当てる形式のクイズ
+/// LLM生成クイズ（LLMQuiz）とは異なるドメインモデル
 struct Quiz: Codable, Identifiable {
   var id: String
   var proposalId: String
-  var index: Int
+  var index: Int  // HTML内のマスク位置
   var answer: String
-  var choices: [String]  // 誤答の選択肢3つ
-  var allChoices: [String]
+  var choices: [String]  // 誤答の選択肢
+  var allChoices: [String]  // 全選択肢（シャッフル済み）
 
-  init(id: String, proposalId: String, index: Int, answer: String, choices: [String]) {
+  init(
+    id: String,
+    proposalId: String,
+    index: Int,
+    answer: String,
+    choices: [String]
+  ) {
     self.id = id
     self.proposalId = proposalId
     self.index = index
@@ -18,6 +27,7 @@ struct Quiz: Codable, Identifiable {
   }
 }
 
+/// マスククイズの回答結果
 struct QuestionResult: Codable, Equatable {
   let index: Int
   let isCorrect: Bool
@@ -25,6 +35,7 @@ struct QuestionResult: Codable, Equatable {
   let userAnswer: String
 }
 
+/// マスククイズのスコア（提案単位）
 struct ProposalScore: Codable {
   let proposalId: String
   let questionResults: [QuestionResult]
