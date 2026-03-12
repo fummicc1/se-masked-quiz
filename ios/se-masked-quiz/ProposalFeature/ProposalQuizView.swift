@@ -20,7 +20,7 @@ struct ProposalQuizView: View {
   @State private var isModelAvailable = false
 
   let proposal: SwiftEvolution
-  private let modelName = "mlx-community/Qwen3-1.7B-8bit"
+  private let modelName = LLMModelConfig.modelId
 
   init(
     proposal: SwiftEvolution,

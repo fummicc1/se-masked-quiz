@@ -157,9 +157,7 @@ actor ModelDownloadServiceImpl: NSObject, ModelDownloadService, URLSessionDownlo
   }
 
   func getModelSize(named modelName: String) async throws -> Int64 {
-    // Qwen3 1.7B 4-bit quantized model のサイズ（約850MB）
-    // 実際のサイズは HEAD リクエストで取得すべきだが、ここでは固定値を返す
-    return 850_000_000  // 850MB
+    return LLMModelConfig.estimatedSizeBytes
   }
 
   // MARK: - Private Methods

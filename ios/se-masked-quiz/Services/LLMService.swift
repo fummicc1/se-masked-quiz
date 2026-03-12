@@ -54,8 +54,8 @@ actor LLMServiceImpl: LLMService {
   private var currentModelId: String?
 
   // 生成パラメータ
-  private let maxTokens: Int = 1024
-  private let temperature: Float = 0.7
+  private let maxTokens: Int = LLMModelConfig.maxTokens
+  private let temperature: Float = LLMModelConfig.temperature
 
   // MARK: - Public Methods
 

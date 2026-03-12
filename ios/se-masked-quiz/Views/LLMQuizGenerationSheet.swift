@@ -16,7 +16,7 @@ struct LLMQuizGenerationSheet: View {
   @State private var selectedDifficulty: QuizDifficulty = .intermediate
   @State private var quizCount: Int = 5
 
-  private let modelId = "mlx-community/Qwen3-1.7B-8bit"
+  private let modelId = LLMModelConfig.modelId
 
   var body: some View {
     NavigationStack {

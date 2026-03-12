@@ -3,7 +3,7 @@
 //  se-masked-quiz
 //
 //  Created for Issue #12: LLM Quiz Generation Prompts
-//  Optimized for MobileLLM 950M (small model)
+//  Optimized for Qwen3.5-0.8B (4-bit)
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import Foundation
 // MARK: - QuizPromptTemplate
 
 /// クイズ生成用のプロンプトテンプレート
-/// MobileLLM-R1-950M向けに最適化
+/// Qwen3.5-0.8B (4-bit) 向けに最適化
 struct QuizPromptTemplate {
 
   // MARK: - System Prompt
@@ -36,8 +36,8 @@ struct QuizPromptTemplate {
     difficulty: QuizDifficulty,
     count: Int
   ) -> String {
-    // コンテンツを最大1500文字に制限（小規模モデル向け）
-    let truncatedContent = String(content.prefix(1500))
+    // コンテンツを最大1000文字に制限（0.8Bモデル向け）
+    let truncatedContent = String(content.prefix(1000))
     let difficultyLevel = difficultyInstruction(for: difficulty)
 
     return """

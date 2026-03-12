@@ -639,8 +639,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.29.2;
+				kind = revision;
+				revision = e33eba8513595bde535719c48fedcb10ade5af57;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
