@@ -25,9 +25,19 @@ struct QuizPromptTemplate {
 
   // MARK: - Quiz Generation Prompt
 
+  /// HTMLタグを除去してプレーンテキストを取得
+  static func stripHTML(_ html: String) -> String {
+    guard !html.isEmpty else { return html }
+    // NSAttributedStringよりも軽量な正規表現ベースの除去
+    return html
+      .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
   /// クイズ生成プロンプトを構築
   /// - Parameters:
-  ///   - content: Swift Evolution提案のコンテンツ
+  ///   - content: Swift Evolution提案のコンテンツ（HTML可）
   ///   - difficulty: 難易度
   ///   - count: 生成するクイズ数
   /// - Returns: 構築されたプロンプト
@@ -37,8 +47,9 @@ struct QuizPromptTemplate {
     count: Int
   ) -> String {
     let clampedCount = min(count, LLMModelConfig.maxQuizCount)
+    let plainContent = stripHTML(content)
     // コンテンツを最大800文字に制限（生成トークン枠を確保）
-    let truncatedContent = String(content.prefix(800))
+    let truncatedContent = String(plainContent.prefix(800))
     let difficultyLevel = difficultyInstruction(for: difficulty)
 
     return """

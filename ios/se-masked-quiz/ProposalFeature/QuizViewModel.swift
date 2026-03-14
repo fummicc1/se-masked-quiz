@@ -247,7 +247,7 @@ final class QuizViewModel: ObservableObject {
     )
 
     llmQuizScore = newScore
-    Task {
+    Task { [quizRepository] in
       await quizRepository.saveLLMQuizScore(newScore)
     }
   }

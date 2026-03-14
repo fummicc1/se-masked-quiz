@@ -24,6 +24,11 @@ struct LLMQuiz: Codable, Identifiable, Equatable {
   /// シャッフル済み選択肢（生成時に一度だけシャッフル）
   let allChoices: [String]
 
+  private enum CodingKeys: String, CodingKey {
+    case id, proposalId, question, correctAnswer, wrongAnswers
+    case explanation, conceptTested, difficulty, generatedAt, allChoices
+  }
+
   init(
     id: String = UUID().uuidString,
     proposalId: String,
@@ -48,6 +53,7 @@ struct LLMQuiz: Codable, Identifiable, Equatable {
   }
 
   // 既存UserDefaultsデータとの互換性: allChoicesキーが存在しない場合はシャッフル生成
+  // allChoicesはencode時に常に保存されるため、初回デコード以降は安定した順序を維持
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     id = try container.decode(String.self, forKey: .id)
@@ -61,6 +67,21 @@ struct LLMQuiz: Codable, Identifiable, Equatable {
     generatedAt = try container.decode(Date.self, forKey: .generatedAt)
     allChoices = try container.decodeIfPresent([String].self, forKey: .allChoices)
       ?? ([correctAnswer] + wrongAnswers).shuffled()
+  }
+
+  // allChoicesを常にエンコードし、デコード時のシャッフル非決定性を防止
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(id, forKey: .id)
+    try container.encode(proposalId, forKey: .proposalId)
+    try container.encode(question, forKey: .question)
+    try container.encode(correctAnswer, forKey: .correctAnswer)
+    try container.encode(wrongAnswers, forKey: .wrongAnswers)
+    try container.encode(explanation, forKey: .explanation)
+    try container.encode(conceptTested, forKey: .conceptTested)
+    try container.encode(difficulty, forKey: .difficulty)
+    try container.encode(generatedAt, forKey: .generatedAt)
+    try container.encode(allChoices, forKey: .allChoices)
   }
 }
 

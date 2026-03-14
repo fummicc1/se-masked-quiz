@@ -73,6 +73,11 @@ actor LLMServiceImpl: LLMService {
 
   private let maxTokens: Int = LLMModelConfig.maxTokens
   private let temperature: Float = LLMModelConfig.temperature
+  private let userDefaults: UserDefaults
+
+  init(userDefaults: UserDefaults = .standard) {
+    self.userDefaults = userDefaults
+  }
 
   // MARK: - Model Loading
 
@@ -152,7 +157,7 @@ actor LLMServiceImpl: LLMService {
     do {
       try await task.value
       currentDownloadTask = nil
-      Self.setDownloadFlag(true, for: modelName)
+      setDownloadFlag(true, for: modelName)
     } catch {
       currentDownloadTask = nil
       if Task.isCancelled {
@@ -176,11 +181,11 @@ actor LLMServiceImpl: LLMService {
       try FileManager.default.removeItem(at: modelDir)
     }
     await unloadModel()
-    Self.setDownloadFlag(false, for: modelName)
+    setDownloadFlag(false, for: modelName)
   }
 
   func isModelDownloaded(named modelName: String) async -> Bool {
-    if Self.getDownloadFlag(for: modelName) {
+    if getDownloadFlag(for: modelName) {
       return true
     }
 
@@ -201,7 +206,7 @@ actor LLMServiceImpl: LLMService {
     let exists = FileManager.default.fileExists(atPath: configPath.path)
 
     if exists {
-      Self.setDownloadFlag(true, for: modelName)
+      setDownloadFlag(true, for: modelName)
     }
 
     return exists
@@ -346,17 +351,17 @@ actor LLMServiceImpl: LLMService {
     "modelDownloaded_\(modelName)"
   }
 
-  private static func setDownloadFlag(_ value: Bool, for modelName: String) {
-    let key = downloadFlagKey(for: modelName)
+  private func setDownloadFlag(_ value: Bool, for modelName: String) {
+    let key = Self.downloadFlagKey(for: modelName)
     if value {
-      UserDefaults.standard.set(true, forKey: key)
+      userDefaults.set(true, forKey: key)
     } else {
-      UserDefaults.standard.removeObject(forKey: key)
+      userDefaults.removeObject(forKey: key)
     }
   }
 
-  private static func getDownloadFlag(for modelName: String) -> Bool {
-    UserDefaults.standard.bool(forKey: downloadFlagKey(for: modelName))
+  private func getDownloadFlag(for modelName: String) -> Bool {
+    userDefaults.bool(forKey: Self.downloadFlagKey(for: modelName))
   }
 
   private static func hubCacheDirectory(for modelName: String) -> URL {
@@ -418,7 +423,7 @@ enum LLMServiceError: Error, LocalizedError {
 
 extension LLMServiceImpl {
   static var defaultValue: any LLMService {
-    LLMServiceImpl()
+    LLMServiceImpl(userDefaults: .standard)
   }
 }
 

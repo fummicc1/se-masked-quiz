@@ -251,10 +251,12 @@ struct ModelDownloadView: View {
 
 // MARK: - Download State
 
-enum DownloadState {
-  case idle
-  case downloading
-  case downloaded
+extension ModelDownloadView {
+  enum DownloadState {
+    case idle
+    case downloading
+    case downloaded
+  }
 }
 
 // MARK: - Preview
