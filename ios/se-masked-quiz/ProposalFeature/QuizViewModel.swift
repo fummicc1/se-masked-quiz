@@ -20,11 +20,6 @@ final class QuizViewModel: ObservableObject {
   @Published var selectedLLMAnswer: [String: String] = [:]  // quizId -> answer
   @Published var isLLMCorrect: [String: Bool] = [:]  // quizId -> isCorrect
 
-  // MARK: - SRS Properties (Issue #12)
-  @Published var dailyReviewQueue: DailyReviewQueue?
-  @Published var reviewStats: ReviewStats?
-  @Published var isSRSEnabled: Bool = true
-
   // MARK: - LLM Generation State
   @Published var isGeneratingQuizzes: Bool = false
   @Published var quizGenerationProgress: Double = 0.0
@@ -32,16 +27,13 @@ final class QuizViewModel: ObservableObject {
   @Published var hasLLMQuizzes: Bool = false
 
   private let quizRepository: any QuizRepository
-  private let srsScheduler: any SRSScheduler
   private let proposalId: String
 
   init(
     proposalId: String,
-    quizRepository: any QuizRepository,
-    srsScheduler: any SRSScheduler
+    quizRepository: any QuizRepository
   ) {
     self.quizRepository = quizRepository
-    self.srsScheduler = srsScheduler
     self.proposalId = proposalId
   }
 
@@ -145,58 +137,6 @@ final class QuizViewModel: ObservableObject {
         }
       }
 
-      if isSRSEnabled {
-        do {
-          async let queueTask = srsScheduler.generateDailyQueue(for: proposalId)
-          async let statsTask = srsScheduler.getReviewStats(for: proposalId)
-          async let schedulesTask = srsScheduler.getAllSchedules()
-
-          let (queue, stats, allSchedules) = try await (queueTask, statsTask, schedulesTask)
-          reviewStats = stats
-
-          // スケジュール未登録のLLMクイズを新規アイテムとして選択
-          let scheduledQuizIds = Set(allSchedules.keys)
-          let unscheduledLLMQuizIds = allLLMQuiz
-            .map(\.id)
-            .filter { !scheduledQuizIds.contains($0) }
-
-          // 復習:新規 = 80:20 の比率で新規アイテム数を決定
-          let targetNewCount = max(1, queue.reviewItems.count / 4)
-          let newItems = Array(unscheduledLLMQuizIds.prefix(targetNewCount))
-
-          dailyReviewQueue = DailyReviewQueue(
-            reviewItems: queue.reviewItems,
-            newItems: newItems
-          )
-
-          // 復習キューに基づいてクイズを並び替え（復習優先、次に新規）
-          let reviewQuizIds = Set(queue.reviewItems)
-          let newQuizIds = Set(newItems)
-          if !reviewQuizIds.isEmpty || !newQuizIds.isEmpty {
-            allQuiz.sort { quiz1, quiz2 in
-              let isReview1 = reviewQuizIds.contains(quiz1.id)
-              let isReview2 = reviewQuizIds.contains(quiz2.id)
-              if isReview1 != isReview2 {
-                return isReview1
-              }
-              return quiz1.index < quiz2.index
-            }
-
-            allLLMQuiz.sort { quiz1, quiz2 in
-              let isReview1 = reviewQuizIds.contains(quiz1.id)
-              let isReview2 = reviewQuizIds.contains(quiz2.id)
-              if isReview1 != isReview2 { return isReview1 }
-              let isNew1 = newQuizIds.contains(quiz1.id)
-              let isNew2 = newQuizIds.contains(quiz2.id)
-              if isNew1 != isNew2 { return isNew1 }
-              return false
-            }
-          }
-        } catch {
-          print("Failed to load SRS data:", error)
-        }
-      }
-
       isConfigured = true
     } catch {
       print("Failed to fetch quiz:", error)
@@ -216,22 +156,6 @@ final class QuizViewModel: ObservableObject {
       let correct = answer == currentQuiz.answer
       isCorrect[index] = correct
       updateScore()
-
-      if isSRSEnabled {
-        Task {
-          do {
-            let quality = await calculateQuality(isCorrect: correct, quizId: currentQuiz.id)
-            try await srsScheduler.updateScheduleAfterReview(
-              quizId: currentQuiz.id,
-              proposalId: currentQuiz.proposalId,
-              quality: quality
-            )
-            reviewStats = try await srsScheduler.getReviewStats(for: proposalId)
-          } catch {
-            print("Failed to update SRS schedule:", error)
-          }
-        }
-      }
     }
   }
 
@@ -277,17 +201,6 @@ final class QuizViewModel: ObservableObject {
     selectedAnswer = [:]
     isCorrect = [:]
     currentScore = nil
-
-    // Issue #12: SRS機能が有効な場合、復習スケジュールも削除
-    if isSRSEnabled {
-      do {
-        try await srsScheduler.deleteSchedules(for: proposalId)
-        dailyReviewQueue = nil
-        reviewStats = nil
-      } catch {
-        print("Failed to delete SRS schedules:", error)
-      }
-    }
   }
 
   // MARK: - LLM Quiz Interactions
@@ -306,22 +219,6 @@ final class QuizViewModel: ObservableObject {
     let correct = answer == quiz.correctAnswer
     isLLMCorrect[quiz.id] = correct
     updateLLMQuizScore()
-
-    if isSRSEnabled {
-      Task {
-        do {
-          let quality = await calculateQuality(isCorrect: correct, quizId: quiz.id)
-          try await srsScheduler.updateScheduleAfterReview(
-            quizId: quiz.id,
-            proposalId: quiz.proposalId,
-            quality: quality
-          )
-          reviewStats = try await srsScheduler.getReviewStats(for: proposalId)
-        } catch {
-          print("Failed to update SRS schedule for LLM quiz:", error)
-        }
-      }
-    }
   }
 
   /// LLMクイズを閉じる
@@ -363,27 +260,4 @@ final class QuizViewModel: ObservableObject {
     llmQuizScore = nil
   }
 
-  // MARK: - SRS Quality Calculation
-
-  /// SM-2品質スコアを連続正解数に基づいて算出
-  func calculateQuality(isCorrect: Bool, quizId: String) async -> Int {
-    guard isCorrect else {
-      // 不正解: 完全忘却(0)ではなく「見て思い出した」(1)
-      return 1
-    }
-
-    guard let schedule = try? await srsScheduler.getSchedule(for: quizId) else {
-      // スケジュール未登録 = 初回正解
-      return 3
-    }
-
-    switch schedule.consecutiveCorrect {
-    case 0:
-      return 3
-    case 1:
-      return 4
-    default:
-      return 5
-    }
-  }
 }

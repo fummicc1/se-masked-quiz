@@ -14,7 +14,6 @@ struct ProposalQuizView: View {
   @State private var modalWebUrl: URL?
   @StateObject var quizViewModel: QuizViewModel
   @State private var isAppeared = false
-  @State private var showsReviewDashboard = false
   @State private var showsLLMGenerationSheet = false
   @State private var showsLLMQuizView = false
   @State private var showsModelRequiredAlert = false
@@ -25,15 +24,13 @@ struct ProposalQuizView: View {
 
   init(
     proposal: SwiftEvolution,
-    quizRepository: any QuizRepository,
-    srsScheduler: any SRSScheduler
+    quizRepository: any QuizRepository
   ) {
     self.proposal = proposal
     _quizViewModel = StateObject(
       wrappedValue: QuizViewModel(
         proposalId: proposal.proposalId,
-        quizRepository: quizRepository,
-        srsScheduler: srsScheduler
+        quizRepository: quizRepository
       )
     )
   }
@@ -80,39 +77,17 @@ struct ProposalQuizView: View {
     #endif
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
-        HStack(spacing: 16) {
-          // LLMクイズボタン
-          Button {
-            if quizViewModel.hasLLMQuizzes {
-              showsLLMQuizView = true
-            } else if isModelAvailable {
-              showsLLMGenerationSheet = true
-            } else {
-              showsModelRequiredAlert = true
-            }
-          } label: {
-            Image(systemName: "wand.and.stars")
+        Button {
+          if quizViewModel.hasLLMQuizzes {
+            showsLLMQuizView = true
+          } else if isModelAvailable {
+            showsLLMGenerationSheet = true
+          } else {
+            showsModelRequiredAlert = true
           }
-
-          // ReviewDashboardボタン
-          Button {
-            showsReviewDashboard = true
-          } label: {
-            Image(systemName: "chart.bar.xaxis")
-          }
+        } label: {
+          Image(systemName: "wand.and.stars")
         }
-      }
-    }
-    .sheet(isPresented: $showsReviewDashboard) {
-      NavigationStack {
-        ReviewDashboardView(proposalId: proposal.proposalId)
-          .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-              Button("閉じる") {
-                showsReviewDashboard = false
-              }
-            }
-          }
       }
     }
     .sheet(isPresented: $showsLLMGenerationSheet, onDismiss: {

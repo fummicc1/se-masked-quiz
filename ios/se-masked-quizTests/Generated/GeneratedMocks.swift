@@ -74,6 +74,72 @@ actor QuizRepositoryMock: QuizRepository {
         }
         return [String: Int]()
     }
+
+    private(set) var saveLLMQuizzesCallCount = 0
+    var saveLLMQuizzesHandler: (([LLMQuiz], String) async -> ())?
+    func saveLLMQuizzes(_ quizzes: [LLMQuiz], for proposalId: String) async {
+        saveLLMQuizzesCallCount += 1
+        if let saveLLMQuizzesHandler = saveLLMQuizzesHandler {
+            await saveLLMQuizzesHandler(quizzes, proposalId)
+        }
+    }
+
+    private(set) var getLLMQuizzesCallCount = 0
+    var getLLMQuizzesHandler: ((String) async -> [LLMQuiz])?
+    func getLLMQuizzes(for proposalId: String) async -> [LLMQuiz] {
+        getLLMQuizzesCallCount += 1
+        if let getLLMQuizzesHandler = getLLMQuizzesHandler {
+            return await getLLMQuizzesHandler(proposalId)
+        }
+        return [LLMQuiz]()
+    }
+
+    private(set) var hasLLMQuizzesCallCount = 0
+    var hasLLMQuizzesHandler: ((String) async -> Bool)?
+    func hasLLMQuizzes(for proposalId: String) async -> Bool {
+        hasLLMQuizzesCallCount += 1
+        if let hasLLMQuizzesHandler = hasLLMQuizzesHandler {
+            return await hasLLMQuizzesHandler(proposalId)
+        }
+        return false
+    }
+
+    private(set) var deleteLLMQuizzesCallCount = 0
+    var deleteLLMQuizzesHandler: ((String) async -> ())?
+    func deleteLLMQuizzes(for proposalId: String) async {
+        deleteLLMQuizzesCallCount += 1
+        if let deleteLLMQuizzesHandler = deleteLLMQuizzesHandler {
+            await deleteLLMQuizzesHandler(proposalId)
+        }
+    }
+
+    private(set) var saveLLMQuizScoreCallCount = 0
+    var saveLLMQuizScoreHandler: ((LLMQuizScore) async -> ())?
+    func saveLLMQuizScore(_ score: LLMQuizScore) async {
+        saveLLMQuizScoreCallCount += 1
+        if let saveLLMQuizScoreHandler = saveLLMQuizScoreHandler {
+            await saveLLMQuizScoreHandler(score)
+        }
+    }
+
+    private(set) var getLLMQuizScoreCallCount = 0
+    var getLLMQuizScoreHandler: ((String) async -> LLMQuizScore?)?
+    func getLLMQuizScore(for proposalId: String) async -> LLMQuizScore? {
+        getLLMQuizScoreCallCount += 1
+        if let getLLMQuizScoreHandler = getLLMQuizScoreHandler {
+            return await getLLMQuizScoreHandler(proposalId)
+        }
+        return nil
+    }
+
+    private(set) var resetLLMQuizScoreCallCount = 0
+    var resetLLMQuizScoreHandler: ((String) async -> ())?
+    func resetLLMQuizScore(for proposalId: String) async {
+        resetLLMQuizScoreCallCount += 1
+        if let resetLLMQuizScoreHandler = resetLLMQuizScoreHandler {
+            await resetLLMQuizScoreHandler(proposalId)
+        }
+    }
 }
 
 

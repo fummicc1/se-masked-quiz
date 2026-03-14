@@ -65,8 +65,7 @@ struct QuizSelectionsView: View {
         cloudflareR2Endpoint: "",
         r2AccessKey: "",
         r2SecretKey: ""
-      ),
-      srsScheduler: SRSSchedulerImpl()
+      )
     )
   )
 }
