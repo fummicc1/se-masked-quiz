@@ -16,8 +16,6 @@ struct LLMQuizGenerationSheet: View {
   @State private var selectedDifficulty: QuizDifficulty = .intermediate
   @State private var quizCount: Int = LLMModelConfig.maxQuizCount
 
-  private let modelId = LLMModelConfig.modelId
-
   var body: some View {
     NavigationStack {
       Form {
@@ -64,7 +62,7 @@ struct LLMQuizGenerationSheet: View {
                 difficulty: selectedDifficulty,
                 count: quizCount,
                 llmService: llmService,
-                modelId: modelId
+                modelId: LLMModelConfig.modelId
               )
               if quizViewModel.quizGenerationError == nil {
                 onDismiss()

@@ -20,7 +20,6 @@ struct ProposalQuizView: View {
   @State private var isModelAvailable = false
 
   let proposal: SwiftEvolution
-  private let modelName = LLMModelConfig.modelId
 
   init(
     proposal: SwiftEvolution,
@@ -117,7 +116,7 @@ struct ProposalQuizView: View {
     }
     .onAppear {
       Task {
-        isModelAvailable = await llmService.isModelDownloaded(named: modelName)
+        isModelAvailable = await llmService.isModelDownloaded(named: LLMModelConfig.modelId)
       }
     }
     .alert("モデルのダウンロードが必要", isPresented: $showsModelRequiredAlert) {

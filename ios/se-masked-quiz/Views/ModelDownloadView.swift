@@ -9,193 +9,205 @@ import SwiftUI
 
 struct ModelDownloadView: View {
   @Environment(\.llmService) var llmService
-  @State private var downloadState: DownloadState = .idle
+  @State private var selectedModel: LLMModelOption = LLMModelConfig.selectedModel
+  @State private var downloadStates: [LLMModelOption: DownloadState] = [:]
   @State private var downloadProgress: Double = 0.0
+  @State private var downloadingModel: LLMModelOption?
   @State private var availableStorage: Int64 = 0
-  @State private var modelSize: Int64 = 0
   @State private var errorMessage: String?
 
-  private let modelName = LLMModelConfig.modelId
-
   var body: some View {
-    VStack(spacing: 20) {
-      headerSection
-      storageInfoSection
-      downloadButtonSection
-      progressSection
-      errorSection
-
-      Spacer()
-    }
-    .padding()
-    .navigationTitle("モデルダウンロード")
-    .onAppear {
-      Task {
-        await loadStorageInfo()
-      }
-    }
-  }
-
-  // MARK: - Sections
-
-  private var headerSection: some View {
-    VStack(spacing: 8) {
-      Image(systemName: "arrow.down.circle.fill")
-        .font(.system(size: 60))
-        .foregroundColor(.blue)
-
-      Text("LLMモデル")
-        .font(.headline)
-
-      Text(LLMModelConfig.displayName)
-        .font(.subheadline)
-        .foregroundColor(.secondary)
-    }
-  }
-
-  private var storageInfoSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Text("モデルサイズ:")
-          .foregroundColor(.secondary)
-        Spacer()
-        Text(formatBytes(modelSize))
-          .fontWeight(.medium)
+    List {
+      // モデル選択セクション
+      Section {
+        ForEach(LLMModelOption.allCases) { model in
+          modelRow(for: model)
+        }
+      } header: {
+        Text("モデル選択")
+      } footer: {
+        Text("モデルのサイズが大きいほど、より複雑な問題の意図を正確に理解し、質の高いクイズを生成できます。ただし、ダウンロードサイズとメモリ使用量が増加します。")
       }
 
-      HStack {
-        Text("利用可能容量:")
-          .foregroundColor(.secondary)
-        Spacer()
-        Text(formatBytes(availableStorage))
-          .fontWeight(.medium)
-          .foregroundColor(hasEnoughStorage ? .green : .red)
-      }
-
-      if !hasEnoughStorage && downloadState == .idle {
-        HStack {
-          Image(systemName: "exclamationmark.triangle.fill")
-            .foregroundColor(.orange)
-          Text("ストレージ容量が不足しています")
-            .font(.caption)
-            .foregroundColor(.orange)
-        }
-      }
-    }
-    .padding()
-    .background(Color(.systemGray6))
-    .cornerRadius(12)
-  }
-
-  private var downloadButtonSection: some View {
-    Group {
-      switch downloadState {
-      case .idle:
-        Button(action: startDownload) {
-          Label("ダウンロード開始", systemImage: "arrow.down.circle")
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(hasEnoughStorage ? Color.blue : Color.gray)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-        }
-        .disabled(!hasEnoughStorage)
-
-      case .downloading:
-        Button(action: cancelDownload) {
-          Label("キャンセル", systemImage: "xmark.circle")
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.red)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-        }
-
-      case .downloaded:
-        HStack {
-          Image(systemName: "checkmark.circle.fill")
-            .foregroundColor(.green)
-          Text("ダウンロード済み")
-            .foregroundColor(.green)
-            .fontWeight(.medium)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
-
-        Button(action: deleteModel) {
-          Label("モデルを削除", systemImage: "trash")
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.red.opacity(0.8))
-            .foregroundColor(.white)
-            .cornerRadius(10)
-        }
-      }
-    }
-  }
-
-  private var progressSection: some View {
-    Group {
-      if case .downloading = downloadState {
-        VStack(spacing: 8) {
+      // ダウンロード進捗
+      if let downloading = downloadingModel {
+        Section("ダウンロード中: \(downloading.displayName)") {
           ProgressView(value: downloadProgress)
             .progressViewStyle(.linear)
-
-          Text("\(Int(downloadProgress * 100))% 完了")
+          HStack {
+            Text("\(Int(downloadProgress * 100))% 完了")
+              .font(.caption)
+              .foregroundColor(.secondary)
+            Spacer()
+            Button("キャンセル", role: .destructive) {
+              cancelDownload()
+            }
             .font(.caption)
-            .foregroundColor(.secondary)
-
-          Text(formatBytes(Int64(Double(modelSize) * downloadProgress)) + " / " + formatBytes(modelSize))
-            .font(.caption2)
-            .foregroundColor(.secondary)
+          }
         }
       }
-    }
-  }
 
-  private var errorSection: some View {
-    Group {
-      if let errorMessage = errorMessage {
+      // ストレージ情報
+      Section("ストレージ") {
         HStack {
-          Image(systemName: "exclamationmark.circle.fill")
-            .foregroundColor(.red)
-          Text(errorMessage)
-            .font(.caption)
-            .foregroundColor(.red)
+          Text("利用可能容量")
+            .foregroundColor(.secondary)
+          Spacer()
+          Text(formatBytes(availableStorage))
+            .fontWeight(.medium)
         }
-        .padding()
-        .background(Color.red.opacity(0.1))
-        .cornerRadius(8)
       }
+
+      // エラー表示
+      if let errorMessage {
+        Section {
+          HStack {
+            Image(systemName: "exclamationmark.circle.fill")
+              .foregroundColor(.red)
+            Text(errorMessage)
+              .font(.caption)
+              .foregroundColor(.red)
+          }
+        }
+      }
+
+      // Tips
+      Section {
+        VStack(alignment: .leading, spacing: 8) {
+          Label("オンデバイスAI", systemImage: "cpu")
+            .font(.subheadline)
+            .fontWeight(.semibold)
+          Text("すべてのAI処理はデバイス上で実行されます。データがクラウドに送信されることはありません。")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+      }
+    }
+    .navigationTitle("モデル管理")
+    #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+    #endif
+    .task {
+      await loadInitialState()
     }
   }
 
-  // MARK: - Computed Properties
+  // MARK: - Model Row
 
-  private var hasEnoughStorage: Bool {
-    let requiredStorage = Int64(Double(modelSize) * 1.5)
-    return availableStorage >= requiredStorage
+  @ViewBuilder
+  private func modelRow(for model: LLMModelOption) -> some View {
+    let state = downloadStates[model] ?? .idle
+    let isSelected = selectedModel == model
+
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: 6) {
+            Text(model.displayName)
+              .font(.body)
+              .fontWeight(isSelected ? .semibold : .regular)
+            if isSelected {
+              Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.accentColor)
+                .font(.caption)
+            }
+          }
+          Text(model.capabilityDescription)
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+        Spacer()
+        Text(formatBytes(model.estimatedSizeBytes))
+          .font(.caption)
+          .foregroundColor(.secondary)
+      }
+
+      // アクションボタン（.borderlessでセルタップとの重複を防止）
+      HStack(spacing: 12) {
+        switch state {
+        case .idle:
+          Button {
+            startDownload(model: model)
+          } label: {
+            Label("ダウンロード", systemImage: "arrow.down.circle")
+              .font(.caption)
+          }
+          .buttonStyle(.borderless)
+          .disabled(downloadingModel != nil)
+
+        case .downloading:
+          ProgressView()
+            .controlSize(.small)
+          Text("ダウンロード中...")
+            .font(.caption)
+            .foregroundColor(.secondary)
+
+        case .downloaded:
+          if !isSelected {
+            Button {
+              selectModel(model)
+            } label: {
+              Label("使用する", systemImage: "checkmark")
+                .font(.caption)
+            }
+            .buttonStyle(.borderless)
+          } else {
+            Text("使用中")
+              .font(.caption)
+              .foregroundColor(.green)
+          }
+
+          Spacer()
+
+          Button(role: .destructive) {
+            deleteModel(model)
+          } label: {
+            Label("削除", systemImage: "trash")
+              .font(.caption)
+          }
+          .buttonStyle(.borderless)
+        }
+      }
+    }
+    .padding(.vertical, 4)
   }
 
   // MARK: - Actions
 
-  private func startDownload() {
-    downloadState = .downloading
+  private func selectModel(_ model: LLMModelOption) {
+    selectedModel = model
+    LLMModelConfig.selectedModel = model
+  }
+
+  private func startDownload(model: LLMModelOption) {
+    let requiredStorage = Int64(Double(model.estimatedSizeBytes) * 1.5)
+    guard availableStorage >= requiredStorage else {
+      errorMessage = "ストレージ容量が不足しています（必要: \(formatBytes(requiredStorage))）"
+      return
+    }
+
+    downloadingModel = model
+    downloadStates[model] = .downloading
+    downloadProgress = 0.0
     errorMessage = nil
 
     Task {
       do {
-        try await llmService.downloadModel(named: modelName) { progress in
+        try await llmService.downloadModel(named: model.modelId) { progress in
           Task { @MainActor in
             downloadProgress = progress
           }
         }
-        downloadState = .downloaded
-        downloadProgress = 1.0
+        downloadStates[model] = .downloaded
+        downloadingModel = nil
+        downloadProgress = 0.0
+
+        // 初回DLなら自動選択
+        selectModel(model)
+        await refreshAvailableStorage()
       } catch {
-        downloadState = .idle
+        downloadStates[model] = .idle
+        downloadingModel = nil
         downloadProgress = 0.0
         errorMessage = error.localizedDescription
       }
@@ -203,37 +215,51 @@ struct ModelDownloadView: View {
   }
 
   private func cancelDownload() {
+    guard let model = downloadingModel else { return }
     Task {
       await llmService.cancelDownload()
-      downloadState = .idle
+      downloadStates[model] = .idle
+      downloadingModel = nil
       downloadProgress = 0.0
     }
   }
 
-  private func deleteModel() {
+  private func deleteModel(_ model: LLMModelOption) {
     Task {
       do {
-        try await llmService.deleteModel(named: modelName)
-        downloadState = .idle
-        downloadProgress = 0.0
-        await loadStorageInfo()
+        try await llmService.deleteModel(named: model.modelId)
+        downloadStates[model] = .idle
+
+        // 削除したモデルが選択中なら、DL済みの別モデルに切り替え
+        if selectedModel == model {
+          let fallback = LLMModelOption.allCases.first {
+            $0 != model && downloadStates[$0] == .downloaded
+          }
+          if let fallback {
+            selectModel(fallback)
+          }
+        }
+        await refreshAvailableStorage()
       } catch {
         errorMessage = error.localizedDescription
       }
     }
   }
 
-  private func loadStorageInfo() async {
+  // MARK: - Data Loading
+
+  private func loadInitialState() async {
+    await refreshAvailableStorage()
+
+    for model in LLMModelOption.allCases {
+      let isDownloaded = await llmService.isModelDownloaded(named: model.modelId)
+      downloadStates[model] = isDownloaded ? .downloaded : .idle
+    }
+  }
+
+  private func refreshAvailableStorage() async {
     do {
       availableStorage = try await llmService.getAvailableStorage()
-      modelSize = try await llmService.getModelSize(named: modelName)
-
-      // モデルがすでにダウンロード済みかチェック
-      let isDownloaded = await llmService.isModelDownloaded(named: modelName)
-      if isDownloaded {
-        downloadState = .downloaded
-        downloadProgress = 1.0
-      }
     } catch {
       errorMessage = error.localizedDescription
     }

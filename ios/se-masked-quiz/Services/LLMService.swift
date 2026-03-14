@@ -227,7 +227,8 @@ actor LLMServiceImpl: LLMService {
   }
 
   func getModelSize(named modelName: String) async throws -> Int64 {
-    return LLMModelConfig.estimatedSizeBytes
+    let option = LLMModelOption.allCases.first { $0.modelId == modelName }
+    return option?.estimatedSizeBytes ?? LLMModelConfig.estimatedSizeBytes
   }
 
   // MARK: - Quiz Generation
