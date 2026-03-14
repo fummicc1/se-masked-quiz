@@ -147,19 +147,6 @@ enum MasteryLevel: String, Codable {
   case reviewing = "復習中"
   case familiar = "習得済み"
   case mastered = "完全習得"
-
-  var color: String {
-    switch self {
-    case .learning:
-      return "red"
-    case .reviewing:
-      return "orange"
-    case .familiar:
-      return "blue"
-    case .mastered:
-      return "green"
-    }
-  }
 }
 
 /// 日次復習キュー

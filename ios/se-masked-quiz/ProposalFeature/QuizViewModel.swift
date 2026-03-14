@@ -145,31 +145,55 @@ final class QuizViewModel: ObservableObject {
         }
       }
 
-      // Issue #12: SRS機能が有効な場合、復習キューと統計を読み込む
       if isSRSEnabled {
         do {
           async let queueTask = srsScheduler.generateDailyQueue(for: proposalId)
           async let statsTask = srsScheduler.getReviewStats(for: proposalId)
+          async let schedulesTask = srsScheduler.getAllSchedules()
 
-          let (queue, stats) = try await (queueTask, statsTask)
-          dailyReviewQueue = queue
+          let (queue, stats, allSchedules) = try await (queueTask, statsTask, schedulesTask)
           reviewStats = stats
 
-          // 復習キューに基づいてクイズを並び替え（復習優先）
-          if !queue.reviewItems.isEmpty {
-            let reviewQuizIds = Set(queue.reviewItems)
+          // スケジュール未登録のLLMクイズを新規アイテムとして選択
+          let scheduledQuizIds = Set(allSchedules.keys)
+          let unscheduledLLMQuizIds = allLLMQuiz
+            .map(\.id)
+            .filter { !scheduledQuizIds.contains($0) }
+
+          // 復習:新規 = 80:20 の比率で新規アイテム数を決定
+          let targetNewCount = max(1, queue.reviewItems.count / 4)
+          let newItems = Array(unscheduledLLMQuizIds.prefix(targetNewCount))
+
+          dailyReviewQueue = DailyReviewQueue(
+            reviewItems: queue.reviewItems,
+            newItems: newItems
+          )
+
+          // 復習キューに基づいてクイズを並び替え（復習優先、次に新規）
+          let reviewQuizIds = Set(queue.reviewItems)
+          let newQuizIds = Set(newItems)
+          if !reviewQuizIds.isEmpty || !newQuizIds.isEmpty {
             allQuiz.sort { quiz1, quiz2 in
               let isReview1 = reviewQuizIds.contains(quiz1.id)
               let isReview2 = reviewQuizIds.contains(quiz2.id)
               if isReview1 != isReview2 {
-                return isReview1  // 復習クイズを先に
+                return isReview1
               }
-              return quiz1.index < quiz2.index  // 同じ優先度ならindexでソート
+              return quiz1.index < quiz2.index
+            }
+
+            allLLMQuiz.sort { quiz1, quiz2 in
+              let isReview1 = reviewQuizIds.contains(quiz1.id)
+              let isReview2 = reviewQuizIds.contains(quiz2.id)
+              if isReview1 != isReview2 { return isReview1 }
+              let isNew1 = newQuizIds.contains(quiz1.id)
+              let isNew2 = newQuizIds.contains(quiz2.id)
+              if isNew1 != isNew2 { return isNew1 }
+              return false
             }
           }
         } catch {
           print("Failed to load SRS data:", error)
-          // SRSデータの読み込みに失敗しても、通常のクイズは継続
         }
       }
 
@@ -193,20 +217,15 @@ final class QuizViewModel: ObservableObject {
       isCorrect[index] = correct
       updateScore()
 
-      // Issue #12: SRS機能が有効な場合、復習スケジュールを更新
       if isSRSEnabled {
         Task {
           do {
-            // 回答品質を計算（0-5のスケール）
-            // 正解: 5（完璧な記憶）、不正解: 0（完全忘却）
-            let quality = correct ? 5 : 0
+            let quality = await calculateQuality(isCorrect: correct, quizId: currentQuiz.id)
             try await srsScheduler.updateScheduleAfterReview(
               quizId: currentQuiz.id,
               proposalId: currentQuiz.proposalId,
               quality: quality
             )
-
-            // 統計情報を更新
             reviewStats = try await srsScheduler.getReviewStats(for: proposalId)
           } catch {
             print("Failed to update SRS schedule:", error)
@@ -288,11 +307,10 @@ final class QuizViewModel: ObservableObject {
     isLLMCorrect[quiz.id] = correct
     updateLLMQuizScore()
 
-    // SRS機能が有効な場合、復習スケジュールを更新
     if isSRSEnabled {
       Task {
         do {
-          let quality = correct ? 5 : 0
+          let quality = await calculateQuality(isCorrect: correct, quizId: quiz.id)
           try await srsScheduler.updateScheduleAfterReview(
             quizId: quiz.id,
             proposalId: quiz.proposalId,
@@ -343,5 +361,29 @@ final class QuizViewModel: ObservableObject {
     selectedLLMAnswer = [:]
     isLLMCorrect = [:]
     llmQuizScore = nil
+  }
+
+  // MARK: - SRS Quality Calculation
+
+  /// SM-2品質スコアを連続正解数に基づいて算出
+  func calculateQuality(isCorrect: Bool, quizId: String) async -> Int {
+    guard isCorrect else {
+      // 不正解: 完全忘却(0)ではなく「見て思い出した」(1)
+      return 1
+    }
+
+    guard let schedule = try? await srsScheduler.getSchedule(for: quizId) else {
+      // スケジュール未登録 = 初回正解
+      return 3
+    }
+
+    switch schedule.consecutiveCorrect {
+    case 0:
+      return 3
+    case 1:
+      return 4
+    default:
+      return 5
+    }
   }
 }

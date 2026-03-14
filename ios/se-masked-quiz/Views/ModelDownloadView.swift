@@ -29,8 +29,10 @@ struct ModelDownloadView: View {
     }
     .padding()
     .navigationTitle("モデルダウンロード")
-    .task {
-      await loadStorageInfo()
+    .onAppear {
+      Task {
+        await loadStorageInfo()
+      }
     }
   }
 

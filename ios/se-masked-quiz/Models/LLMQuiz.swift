@@ -21,10 +21,8 @@ struct LLMQuiz: Codable, Identifiable, Equatable {
   let difficulty: QuizDifficulty
   let generatedAt: Date
 
-  /// すべての選択肢（シャッフル済み）
-  var allChoices: [String] {
-    ([correctAnswer] + wrongAnswers).shuffled()
-  }
+  /// シャッフル済み選択肢（生成時に一度だけシャッフル）
+  let allChoices: [String]
 
   init(
     id: String = UUID().uuidString,
@@ -46,6 +44,23 @@ struct LLMQuiz: Codable, Identifiable, Equatable {
     self.conceptTested = conceptTested
     self.difficulty = difficulty
     self.generatedAt = generatedAt
+    self.allChoices = ([correctAnswer] + wrongAnswers).shuffled()
+  }
+
+  // 既存UserDefaultsデータとの互換性: allChoicesキーが存在しない場合はシャッフル生成
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    proposalId = try container.decode(String.self, forKey: .proposalId)
+    question = try container.decode(String.self, forKey: .question)
+    correctAnswer = try container.decode(String.self, forKey: .correctAnswer)
+    wrongAnswers = try container.decode([String].self, forKey: .wrongAnswers)
+    explanation = try container.decode(String.self, forKey: .explanation)
+    conceptTested = try container.decode(String.self, forKey: .conceptTested)
+    difficulty = try container.decode(QuizDifficulty.self, forKey: .difficulty)
+    generatedAt = try container.decode(Date.self, forKey: .generatedAt)
+    allChoices = try container.decodeIfPresent([String].self, forKey: .allChoices)
+      ?? ([correctAnswer] + wrongAnswers).shuffled()
   }
 }
 

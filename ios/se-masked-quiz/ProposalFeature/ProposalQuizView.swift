@@ -17,6 +17,8 @@ struct ProposalQuizView: View {
   @State private var isAppeared = false
   @State private var showsReviewDashboard = false
   @State private var showsLLMGenerationSheet = false
+  @State private var showsLLMQuizView = false
+  @State private var showsModelRequiredAlert = false
   @State private var isModelAvailable = false
 
   let proposal: SwiftEvolution
@@ -80,13 +82,18 @@ struct ProposalQuizView: View {
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
         HStack(spacing: 16) {
-          // LLMクイズ生成ボタン
+          // LLMクイズボタン
           Button {
-            showsLLMGenerationSheet = true
+            if quizViewModel.hasLLMQuizzes {
+              showsLLMQuizView = true
+            } else if isModelAvailable {
+              showsLLMGenerationSheet = true
+            } else {
+              showsModelRequiredAlert = true
+            }
           } label: {
             Image(systemName: "wand.and.stars")
           }
-          .disabled(!isModelAvailable)
 
           // ReviewDashboardボタン
           Button {
@@ -109,7 +116,11 @@ struct ProposalQuizView: View {
           }
       }
     }
-    .sheet(isPresented: $showsLLMGenerationSheet) {
+    .sheet(isPresented: $showsLLMGenerationSheet, onDismiss: {
+      if quizViewModel.hasLLMQuizzes {
+        showsLLMQuizView = true
+      }
+    }) {
       LLMQuizGenerationSheet(
         proposal: proposal,
         quizViewModel: quizViewModel,
@@ -117,10 +128,28 @@ struct ProposalQuizView: View {
         onDismiss: { showsLLMGenerationSheet = false }
       )
     }
+    .sheet(isPresented: $showsLLMQuizView) {
+      LLMQuizView(
+        viewModel: quizViewModel,
+        onRegenerate: {
+          showsLLMQuizView = false
+          showsLLMGenerationSheet = true
+        },
+        onDismiss: { showsLLMQuizView = false }
+      )
+    }
     .task {
       await quizViewModel.configure()
-      // モデルダウンロード状態を確認
-      isModelAvailable = await modelDownloadService.isModelDownloaded(named: modelName)
+    }
+    .onAppear {
+      Task {
+        isModelAvailable = await modelDownloadService.isModelDownloaded(named: modelName)
+      }
+    }
+    .alert("モデルのダウンロードが必要", isPresented: $showsModelRequiredAlert) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text("LLMクイズを生成するには、設定画面からモデルをダウンロードしてください。")
     }
     .alert("クイズをリセット", isPresented: $quizViewModel.isShowingResetAlert) {
       Button("キャンセル", role: .cancel) {}
