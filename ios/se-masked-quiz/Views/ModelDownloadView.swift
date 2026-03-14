@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ModelDownloadView: View {
-  @Environment(\.modelDownloadService) var downloadService
+  @Environment(\.llmService) var llmService
   @State private var downloadState: DownloadState = .idle
   @State private var downloadProgress: Double = 0.0
   @State private var availableStorage: Int64 = 0
@@ -187,7 +187,7 @@ struct ModelDownloadView: View {
 
     Task {
       do {
-        _ = try await downloadService.downloadModel(named: modelName) { progress in
+        try await llmService.downloadModel(named: modelName) { progress in
           Task { @MainActor in
             downloadProgress = progress
           }
@@ -204,7 +204,7 @@ struct ModelDownloadView: View {
 
   private func cancelDownload() {
     Task {
-      await downloadService.cancelDownload()
+      await llmService.cancelDownload()
       downloadState = .idle
       downloadProgress = 0.0
     }
@@ -213,7 +213,7 @@ struct ModelDownloadView: View {
   private func deleteModel() {
     Task {
       do {
-        try await downloadService.deleteModel(named: modelName)
+        try await llmService.deleteModel(named: modelName)
         downloadState = .idle
         downloadProgress = 0.0
         await loadStorageInfo()
@@ -225,11 +225,11 @@ struct ModelDownloadView: View {
 
   private func loadStorageInfo() async {
     do {
-      availableStorage = try await downloadService.getAvailableStorage()
-      modelSize = try await downloadService.getModelSize(named: modelName)
+      availableStorage = try await llmService.getAvailableStorage()
+      modelSize = try await llmService.getModelSize(named: modelName)
 
       // モデルがすでにダウンロード済みかチェック
-      let isDownloaded = await downloadService.isModelDownloaded(named: modelName)
+      let isDownloaded = await llmService.isModelDownloaded(named: modelName)
       if isDownloaded {
         downloadState = .downloaded
         downloadProgress = 1.0

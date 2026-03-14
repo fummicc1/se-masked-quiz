@@ -10,7 +10,6 @@ import SwiftUI
 struct ProposalQuizView: View {
 
   @Environment(\.llmService) var llmService
-  @Environment(\.modelDownloadService) var modelDownloadService
 
   @State private var modalWebUrl: URL?
   @StateObject var quizViewModel: QuizViewModel
@@ -143,7 +142,7 @@ struct ProposalQuizView: View {
     }
     .onAppear {
       Task {
-        isModelAvailable = await modelDownloadService.isModelDownloaded(named: modelName)
+        isModelAvailable = await llmService.isModelDownloaded(named: modelName)
       }
     }
     .alert("モデルのダウンロードが必要", isPresented: $showsModelRequiredAlert) {
