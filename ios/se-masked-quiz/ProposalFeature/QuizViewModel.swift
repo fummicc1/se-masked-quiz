@@ -191,7 +191,7 @@ final class QuizViewModel: ObservableObject {
     )
 
     currentScore = newScore
-    Task {
+    Task { [quizRepository] in
       await quizRepository.saveScore(newScore)
     }
   }

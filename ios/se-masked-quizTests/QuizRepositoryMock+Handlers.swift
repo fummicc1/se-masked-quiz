@@ -51,4 +51,41 @@ extension QuizRepositoryMock {
   func setFetchQuizHandler(_ handler: @escaping @Sendable (String) async throws -> [Quiz]) {
     fetchQuizHandler = handler
   }
+
+  // MARK: - LLM Quiz Handlers
+
+  /// Sets handler for getLLMQuizzes
+  func setGetLLMQuizzesHandler(_ handler: @escaping @Sendable (String) async -> [LLMQuiz]) {
+    getLLMQuizzesHandler = handler
+  }
+
+  /// Sets handler for hasLLMQuizzes
+  func setHasLLMQuizzesHandler(_ handler: @escaping @Sendable (String) async -> Bool) {
+    hasLLMQuizzesHandler = handler
+  }
+
+  /// Sets handler for saveLLMQuizzes
+  func setSaveLLMQuizzesHandler(_ handler: @escaping @Sendable ([LLMQuiz], String) async -> Void) {
+    saveLLMQuizzesHandler = handler
+  }
+
+  /// Sets handler for deleteLLMQuizzes
+  func setDeleteLLMQuizzesHandler(_ handler: @escaping @Sendable (String) async -> Void) {
+    deleteLLMQuizzesHandler = handler
+  }
+
+  /// Sets handler for saveLLMQuizScore
+  func setSaveLLMQuizScoreHandler(_ handler: @escaping @Sendable (LLMQuizScore) async -> Void) {
+    saveLLMQuizScoreHandler = handler
+  }
+
+  /// Sets handler for getLLMQuizScore
+  func setGetLLMQuizScoreHandler(_ handler: @escaping @Sendable (String) async -> LLMQuizScore?) {
+    getLLMQuizScoreHandler = handler
+  }
+
+  /// Sets handler for resetLLMQuizScore
+  func setResetLLMQuizScoreHandler(_ handler: @escaping @Sendable (String) async -> Void) {
+    resetLLMQuizScoreHandler = handler
+  }
 }
