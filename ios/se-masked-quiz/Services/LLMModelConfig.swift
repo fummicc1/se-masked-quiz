@@ -18,9 +18,12 @@ enum LLMModelConfig {
   /// モデルの推定サイズ（バイト）
   static let estimatedSizeBytes: Int64 = 625_000_000
 
-  /// サンプリング温度
-  static let temperature: Float = 1.0
+  /// サンプリング温度（0.8Bモデルで構造化出力を安定させるため低めに設定）
+  static let temperature: Float = 0.3
 
   /// 最大生成トークン数
-  static let maxTokens: Int = 1024
+  static let maxTokens: Int = 2048
+
+  /// クイズ生成数の上限（小規模モデルの出力長制約）
+  static let maxQuizCount: Int = 3
 }

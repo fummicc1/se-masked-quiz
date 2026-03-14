@@ -14,7 +14,7 @@ struct LLMQuizGenerationSheet: View {
   let onDismiss: () -> Void
 
   @State private var selectedDifficulty: QuizDifficulty = .intermediate
-  @State private var quizCount: Int = 5
+  @State private var quizCount: Int = LLMModelConfig.maxQuizCount
 
   private let modelId = LLMModelConfig.modelId
 
@@ -33,7 +33,7 @@ struct LLMQuizGenerationSheet: View {
 
         // クイズ数選択
         Section("クイズ数") {
-          Stepper("\(quizCount)問", value: $quizCount, in: 1...10)
+          Stepper("\(quizCount)問", value: $quizCount, in: 1...LLMModelConfig.maxQuizCount)
         }
 
         // 生成進捗表示

@@ -36,25 +36,23 @@ struct QuizPromptTemplate {
     difficulty: QuizDifficulty,
     count: Int
   ) -> String {
-    // コンテンツを最大1000文字に制限（0.8Bモデル向け）
-    let truncatedContent = String(content.prefix(1000))
+    let clampedCount = min(count, LLMModelConfig.maxQuizCount)
+    // コンテンツを最大800文字に制限（生成トークン枠を確保）
+    let truncatedContent = String(content.prefix(800))
     let difficultyLevel = difficultyInstruction(for: difficulty)
 
     return """
-    Create \(count) quiz questions about this Swift proposal.
+    Create exactly \(clampedCount) multiple-choice quiz questions about the Swift proposal below.
     Difficulty: \(difficultyLevel)
 
     Proposal:
     \(truncatedContent)
 
-    Output JSON:
-    {"quizzes":[{"question":"質問","correctAnswer":"正解","wrongAnswers":["誤1","誤2","誤3"],"explanation":"解説","conceptTested":"概念"}]}
+    You MUST output ONLY a single JSON object. No markdown, no explanation, no HTML.
+    Keep each answer under 5 words. Keep explanations under 20 words.
 
-    Rules:
-    - Questions in Japanese
-    - 1 correct + 3 wrong answers
-    - Short answers (1-5 words)
-    - Return ONLY JSON
+    Exact format:
+    {"quizzes":[{"question":"...","correctAnswer":"...","wrongAnswers":["...","...","..."],"explanation":"...","conceptTested":"..."}]}
     """
   }
 
@@ -92,25 +90,33 @@ struct QuizPromptTemplate {
   /// - Returns: パースされたクイズ生成応答
   /// - Throws: デコードエラー
   static func parseResponse(_ jsonString: String) throws -> QuizGenerationResponse {
-    // JSONの前後の不要なテキストを削除
     let cleaned = cleanJSONString(jsonString)
 
     guard let data = cleaned.data(using: .utf8) else {
       throw QuizPromptError.invalidJSON("Failed to convert string to data")
     }
 
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    // camelCase → snake_case の順に試行（LLMの出力形式が不定のため）
+    for strategy in [JSONDecoder.KeyDecodingStrategy.useDefaultKeys, .convertFromSnakeCase] {
+      let decoder = JSONDecoder()
+      decoder.keyDecodingStrategy = strategy
 
-    do {
-      return try decoder.decode(QuizGenerationResponse.self, from: data)
-    } catch {
-      // フォールバック: 部分的なJSONの修復を試行
+      if let result = try? decoder.decode(QuizGenerationResponse.self, from: data) {
+        return result
+      }
+
       let repaired = tryRepairJSON(cleaned)
       if let repairedData = repaired.data(using: .utf8),
          let result = try? decoder.decode(QuizGenerationResponse.self, from: repairedData) {
         return result
       }
+    }
+
+    // 両方失敗した場合、エラー詳細を出力
+    let decoder = JSONDecoder()
+    do {
+      return try decoder.decode(QuizGenerationResponse.self, from: data)
+    } catch {
       throw QuizPromptError.decodingFailed(error)
     }
   }
