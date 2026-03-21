@@ -9,15 +9,29 @@ import Foundation
 import SwiftUI
 
 struct SERepository: Sendable {
-  func fetch(offset: Int) async throws -> [SwiftEvolution] {
-    let microCmsApiKey = Env.microCmsApiKey
+  func fetch(offset: Int, query: String? = nil) async throws -> [SwiftEvolution] {
+    let microCmsReadOnlyApiKey = Env.microCmsReadOnlyApiKey
     let microCmsApiEndpoint = Env.microCmsApiEndpoint
-    let requestURL = URL(
-      string: "https://\(microCmsApiEndpoint).microcms.io/api/v1/proposals?offset=\(offset)")!
+
+    var components = URLComponents()
+    components.scheme = "https"
+    components.host = "\(microCmsApiEndpoint).microcms.io"
+    components.path = "/api/v1/proposals"
+
+    var queryItems = [URLQueryItem(name: "offset", value: "\(offset)")]
+    if let query, !query.isEmpty {
+      queryItems.append(URLQueryItem(name: "q", value: query))
+    }
+    components.queryItems = queryItems
+
+    guard let requestURL = components.url else {
+      throw URLError(.badURL)
+    }
+
     var request = URLRequest(url: requestURL)
     request.httpMethod = "GET"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue(microCmsApiKey, forHTTPHeaderField: "X-MICROCMS-API-KEY")
+    request.setValue(microCmsReadOnlyApiKey, forHTTPHeaderField: "X-MICROCMS-API-KEY")
     let (data, _) = try await URLSession.shared.data(for: request)
     let decoder = JSONDecoder()
     let response = try decoder.decode(FetchResponse.self, from: data)

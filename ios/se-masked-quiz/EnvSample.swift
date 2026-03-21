@@ -11,6 +11,10 @@
       ""
     }
 
+    static var microCmsReadOnlyApiKey: String {
+      ""
+    }
+
     static var microCmsApiEndpoint: String {
       ""
     }

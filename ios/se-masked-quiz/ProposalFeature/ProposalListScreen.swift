@@ -17,6 +17,9 @@ struct ProposalListScreen: View {
   @State private var showsSetting: Bool = false
   @State private var quizProgresses: [String: ProposalProgress] = [:]
   @State private var isLoadingProgress: Bool = false
+  @State private var searchText: String = ""
+  @State private var activeQuery: String = ""
+  @State private var searchTask: Task<Void, Never>?
 
   var body: some View {
     GeometryReader { proxy in
@@ -60,6 +63,43 @@ struct ProposalListScreen: View {
             quizRepository: quizRepository
           )
         }
+        .overlay {
+          if !proposals.isLoading && proposals.content.isEmpty && !activeQuery.isEmpty {
+            ContentUnavailableView.search(text: activeQuery)
+          }
+        }
+        .searchable(text: $searchText, prompt: "プロポーザルを検索")
+        .onSubmit(of: .search) {
+          searchTask?.cancel()
+          activeQuery = searchText
+        }
+        .onChange(of: searchText) { _, newValue in
+          searchTask?.cancel()
+          searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            activeQuery = newValue
+          }
+        }
+        .onChange(of: activeQuery) { _, newQuery in
+          offset = 0
+          shouldLoadNextPage = false
+          proposals = .idle
+
+          Task {
+            proposals.startLoading()
+            do {
+              let query = newQuery.isEmpty ? nil : newQuery
+              let results = try await repository.fetch(offset: 0, query: query)
+              offset = results.count
+              proposals = .loaded(results)
+            } catch {
+              if !Task.isCancelled {
+                proposals = .error(error)
+              }
+            }
+          }
+        }
         .toolbar {
           #if os(iOS)
             ToolbarItem(placement: .topBarLeading) {
@@ -93,7 +133,8 @@ struct ProposalListScreen: View {
             proposals.startLoading()
             Task {
               do {
-                let newProposals = try await repository.fetch(offset: offset)
+                let query = activeQuery.isEmpty ? nil : activeQuery
+                let newProposals = try await repository.fetch(offset: offset, query: query)
                 var currentProposals = proposals.content
                 currentProposals.append(contentsOf: newProposals)
                 proposals = .loaded(currentProposals)
