@@ -11,7 +11,7 @@ struct ModelDownloadView: View {
   @Environment(\.llmService) var llmService
   @State private var selectedModel: LLMModelOption = LLMModelConfig.selectedModel
   @State private var downloadStates: [LLMModelOption: DownloadState] = [:]
-  @State private var downloadProgress: Double = 0.0
+  @State private var downloadProgress: Progress?
   @State private var downloadingModel: LLMModelOption?
   @State private var availableStorage: Int64 = 0
   @State private var errorMessage: String?
@@ -32,12 +32,23 @@ struct ModelDownloadView: View {
       // ダウンロード進捗
       if let downloading = downloadingModel {
         Section("ダウンロード中: \(downloading.displayName)") {
-          ProgressView(value: downloadProgress)
-            .progressViewStyle(.linear)
+          if let progress = downloadProgress, !progress.isIndeterminate {
+            ProgressView(value: progress.fractionCompleted)
+              .progressViewStyle(.linear)
+          } else {
+            ProgressView()
+              .progressViewStyle(.linear)
+          }
           HStack {
-            Text("\(Int(downloadProgress * 100))% 完了")
-              .font(.caption)
-              .foregroundColor(.secondary)
+            if let progress = downloadProgress, progress.totalUnitCount > 0 {
+              Text("\(formatBytes(progress.completedUnitCount)) / \(formatBytes(progress.totalUnitCount))")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            } else {
+              Text("ダウンロード中...")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
             Spacer()
             Button("キャンセル", role: .destructive) {
               cancelDownload()
@@ -188,7 +199,7 @@ struct ModelDownloadView: View {
 
     downloadingModel = model
     downloadStates[model] = .downloading
-    downloadProgress = 0.0
+    downloadProgress = nil
     errorMessage = nil
 
     Task {
@@ -200,7 +211,7 @@ struct ModelDownloadView: View {
         }
         downloadStates[model] = .downloaded
         downloadingModel = nil
-        downloadProgress = 0.0
+        downloadProgress = nil
 
         // 初回DLなら自動選択
         selectModel(model)
@@ -208,7 +219,7 @@ struct ModelDownloadView: View {
       } catch {
         downloadStates[model] = .idle
         downloadingModel = nil
-        downloadProgress = 0.0
+        downloadProgress = nil
         errorMessage = error.localizedDescription
       }
     }
@@ -220,7 +231,7 @@ struct ModelDownloadView: View {
       await llmService.cancelDownload()
       downloadStates[model] = .idle
       downloadingModel = nil
-      downloadProgress = 0.0
+      downloadProgress = nil
     }
   }
 
