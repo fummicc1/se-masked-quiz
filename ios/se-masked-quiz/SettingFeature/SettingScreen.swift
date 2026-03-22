@@ -11,6 +11,19 @@ struct SettingScreen: View {
   var body: some View {
     NavigationStack {
       List {
+        // LLM Model Section (Issue #12)
+        Section("LLMモデル") {
+          NavigationLink {
+            ModelDownloadView()
+          } label: {
+            HStack {
+              Image(systemName: "cpu")
+                .foregroundColor(.blue)
+              Text("モデル管理")
+            }
+          }
+        }
+
         // License Section
         Section("ライセンス") {
           NavigationLink {
