@@ -7,11 +7,13 @@
 
 #if CI
   enum Env {
-    static var microCmsApiKey: String {
+    /// Strapi REST のベース（例: `https://your-cms.example.com/api`）。末尾スラッシュは任意。
+    static var strapiBaseURL: String {
       ""
     }
 
-    static var microCmsApiEndpoint: String {
+    /// Strapi の API トークン（Settings → API Tokens）。
+    static var strapiApiToken: String {
       ""
     }
     static var cloudflareR2Endpoint: String {
