@@ -7,6 +7,8 @@ struct ProposalProgress: Equatable {
   let totalCount: Int  // 全問題数
   let correctCount: Int  // 正解数
 
+  // MARK: - Computed Properties
+
   /// 進捗率（0.0〜1.0）
   var progressRate: Double {
     guard totalCount > 0 else { return 0.0 }
@@ -34,6 +36,7 @@ struct ProposalProgress: Equatable {
       return .inProgress
     }
   }
+
 }
 
 /// 進捗状態を表す列挙型

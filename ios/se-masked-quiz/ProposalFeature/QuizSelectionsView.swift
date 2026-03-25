@@ -67,6 +67,5 @@ struct QuizSelectionsView: View {
         r2SecretKey: ""
       )
     )
-
   )
 }
