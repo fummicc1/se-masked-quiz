@@ -170,3 +170,7 @@ dist
 
 .dev.vars
 .wrangler/
+
+# Payload CMS / OpenNext
+.open-next/
+payload-types.ts

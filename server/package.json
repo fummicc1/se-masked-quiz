@@ -1,18 +1,35 @@
 {
-	"name": "se-masked-quiz-server",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.8.19",
-		"typescript": "^5.5.2",
-		"vitest": "~3.0.7",
-		"wrangler": "^4.14.4"
-	}
+  "name": "se-masked-quiz-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' next build",
+    "dev": "next dev",
+    "deploy": "pnpm build && opennextjs-cloudflare && wrangler deploy",
+    "deploy:db": "wrangler d1 migrations apply se-masked-quiz-db --remote",
+    "generate:types": "payload generate:types",
+    "payload": "cross-env NODE_OPTIONS='--no-deprecation' payload"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "^1.4.2",
+    "@payloadcms/db-d1-sqlite": "^3.82.1",
+    "@payloadcms/next": "^3.82.1",
+    "@payloadcms/richtext-lexical": "^3.82.1",
+    "@payloadcms/storage-r2": "^3.82.1",
+    "cross-env": "^7.0.3",
+    "graphql": "^16.10.0",
+    "next": "^16.2.3",
+    "payload": "^3.82.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260317.1",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.14.4"
+  }
 }
