@@ -12,7 +12,8 @@ struct ProposalListScreen: View {
   @Environment(\.quizRepository) var quizRepository
   @State private var proposals: AsyncProposals = .idle
   @State private var modalWebUrl: URL?
-  @State private var offset: Int = 0
+  @State private var currentPage: Int = 1
+  @State private var hasNextPage: Bool = true
   @State private var shouldLoadNextPage: Bool = false
   @State private var showsSetting: Bool = false
   @State private var quizProgresses: [String: ProposalProgress] = [:]
@@ -87,17 +88,18 @@ struct ProposalListScreen: View {
         of: shouldLoadNextPage,
         { oldValue, newValue in
           if !oldValue, newValue {
-            if proposals.isLoading {
+            if proposals.isLoading || !hasNextPage {
               return
             }
             proposals.startLoading()
             Task {
               do {
-                let newProposals = try await repository.fetch(offset: offset)
+                let response = try await repository.fetch(page: currentPage)
+                hasNextPage = response.hasNextPage
                 var currentProposals = proposals.content
-                currentProposals.append(contentsOf: newProposals)
+                currentProposals.append(contentsOf: response.docs.map { $0.toSwiftEvolution() })
                 proposals = .loaded(currentProposals)
-                offset = currentProposals.count
+                currentPage += 1
               } catch {
                 proposals = .error(error)
               }
@@ -111,9 +113,10 @@ struct ProposalListScreen: View {
         }
         do {
           proposals.startLoading()
-          let proposals = try await repository.fetch(offset: offset)
-          offset = proposals.count
-          self.proposals = .loaded(proposals)
+          let response = try await repository.fetch(page: currentPage)
+          hasNextPage = response.hasNextPage
+          self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
+          currentPage += 1
 
           // 進捗情報を読み込む
           await loadQuizProgresses()

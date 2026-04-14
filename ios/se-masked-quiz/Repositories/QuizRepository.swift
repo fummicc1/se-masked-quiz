@@ -5,8 +5,6 @@
 //  Created by Fumiya Tanaka on 2025/01/09.
 //
 
-import AWSS3
-import AWSSDKIdentity
 import Foundation
 import SwiftUI
 
@@ -23,7 +21,7 @@ protocol QuizRepository: Actor {
   /// Get score for a specific proposal (mask quiz)
   func getScore(for proposalId: String) async -> ProposalScore?
 
-  /// Fetch mask quiz for a specific proposal from R2
+  /// Fetch mask quiz for a specific proposal from Payload API
   func fetchQuiz(for proposalId: String) async throws -> [Quiz]
 
   /// Reset score for a specific proposal (mask quiz)
@@ -59,12 +57,10 @@ protocol QuizRepository: Actor {
 // MARK: - Repository Implementation
 
 actor QuizRepositoryImpl: QuizRepository {
-  private let s3Client: S3Client
-  private let quizBucket = "se-masked-quiz"
   private let userDefaults: UserDefaults
 
   // MARK: - Cache
-  private var answersCache: QuizAnswers?
+  private var answersCache: [String: [QuizAnswer]]?
   private var answersCacheTimestamp: Date?
   private let cacheExpirationInterval: TimeInterval = 43200  // 12時間
 
@@ -72,24 +68,7 @@ actor QuizRepositoryImpl: QuizRepository {
   private static let llmQuizzesKey = "llm_quizzes"
   private static let llmQuizScoresKey = "llm_quiz_scores"
 
-  init(
-    cloudflareR2Endpoint: String,
-    r2AccessKey: String,
-    r2SecretKey: String,
-    userDefaults: UserDefaults = .standard
-  ) {
-    let identity = AWSCredentialIdentity(
-      accessKey: r2AccessKey,
-      secret: r2SecretKey
-    )
-    let identityResolver = try! StaticAWSCredentialIdentityResolver(identity)
-    self.s3Client = .init(
-      config: try! .init(
-        awsCredentialIdentityResolver: identityResolver,
-        region: "auto",
-        endpoint: cloudflareR2Endpoint
-      )
-    )
+  init(userDefaults: UserDefaults = .standard) {
     self.userDefaults = userDefaults
   }
 
@@ -120,9 +99,9 @@ actor QuizRepositoryImpl: QuizRepository {
   // MARK: - Mask Quiz Management
 
   func fetchQuiz(for proposalId: String) async throws -> [Quiz] {
-    let answers = try await fetchAnswersJson()
+    let allAnswers = try await fetchAllAnswers()
 
-    guard let proposalAnswers = answers.answers[proposalId] else {
+    guard let proposalAnswers = allAnswers[proposalId] else {
       throw QuizError.proposalNotFound
     }
 
@@ -149,8 +128,8 @@ actor QuizRepositoryImpl: QuizRepository {
   }
 
   func getAllQuizCounts() async throws -> [String: Int] {
-    let answers = try await fetchAnswersJson()
-    return answers.answers.mapValues { $0.count }
+    let allAnswers = try await fetchAllAnswers()
+    return allAnswers.mapValues { $0.count }
   }
 
   // MARK: - LLM Quiz Management
@@ -213,7 +192,7 @@ actor QuizRepositoryImpl: QuizRepository {
 
   // MARK: - Private Helpers
 
-  private func fetchAnswersJson() async throws -> QuizAnswers {
+  private func fetchAllAnswers() async throws -> [String: [QuizAnswer]] {
     if let cache = answersCache,
       let timestamp = answersCacheTimestamp,
       Date().timeIntervalSince(timestamp) < cacheExpirationInterval
@@ -221,19 +200,32 @@ actor QuizRepositoryImpl: QuizRepository {
       return cache
     }
 
-    let input = GetObjectInput(bucket: quizBucket, key: "answers.json")
-    let contents = try await s3Client.getObject(input: input)
-    let binary = try? await contents.body?.readData()
-    guard let binary else {
+    let baseURL = Env.serverBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    guard let url = URL(string: "\(baseURL)/api/quiz-answers?limit=1000") else {
       throw QuizError.invalidResponse
     }
 
-    let answers = try JSONDecoder().decode(QuizAnswers.self, from: binary)
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("users API-Key \(Env.serverApiKey)", forHTTPHeaderField: "Authorization")
 
-    answersCache = answers
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+      throw QuizError.invalidResponse
+    }
+
+    let decoded = try JSONDecoder().decode(PayloadListResponse<PayloadQuizAnswer>.self, from: data)
+
+    var result: [String: [QuizAnswer]] = [:]
+    for doc in decoded.docs {
+      result[doc.proposalId] = doc.answers
+    }
+
+    answersCache = result
     answersCacheTimestamp = Date()
 
-    return answers
+    return result
   }
 
   private func getAllLLMQuizzes() async -> [String: [LLMQuiz]] {
@@ -253,34 +245,20 @@ actor QuizRepositoryImpl: QuizRepository {
     }
     return scores
   }
-
-  private func update(run: (isolated QuizRepositoryImpl) async throws -> Void) async throws {
-    try await run(self)
-  }
 }
 
 // MARK: - Models
 
-extension QuizRepositoryImpl {
-  fileprivate struct QuizAnswers: Codable {
-    var answers: [String: [QuizAnswer]]
+struct QuizAnswer: Codable, Sendable {
+  var index: Int
+  var answer: String
+  var options: [String]
+}
 
-    struct QuizAnswer: Codable {
-      var index: Int
-      var answer: String
-      var options: [String]
-    }
-
-    init(from decoder: any Decoder) throws {
-      let container = try decoder.singleValueContainer()
-      self.answers = try container.decode([String: [QuizAnswer]].self)
-    }
-  }
-
-  fileprivate struct WordFrequency: Codable {
-    let word: String
-    let frequency: Int
-  }
+struct PayloadQuizAnswer: Decodable, Sendable {
+  let id: Int
+  let proposalId: String
+  let answers: [QuizAnswer]
 }
 
 // MARK: - Errors
@@ -295,11 +273,7 @@ enum QuizError: Error {
 
 extension QuizRepositoryImpl: EnvironmentKey {
   static var defaultValue: any QuizRepository {
-    QuizRepositoryImpl(
-      cloudflareR2Endpoint: Env.cloudflareR2Endpoint,
-      r2AccessKey: Env.cloudflareR2AccessKey,
-      r2SecretKey: Env.cloudflareR2SecretKey
-    )
+    QuizRepositoryImpl()
   }
 }
 

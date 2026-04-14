@@ -2,34 +2,37 @@ import Foundation
 import Testing
 @testable import se_masked_quiz
 
-@Suite("SERepository / Strapi payload")
+@Suite("SERepository / Payload CMS REST API")
 struct SERepositoryTests {
 
-  @Test("Strapi v4 形式（attributes ネスト）を SwiftEvolution に変換できる")
-  func decodeStrapiV4NestedAttributes() throws {
+  @Test("Payload REST API レスポンスを正しくデコードできる")
+  func decodePayloadListResponse() throws {
     let json = """
     {
-      "data": [
+      "docs": [
         {
           "id": 1,
-          "attributes": {
-            "proposalId": "0001",
-            "title": "SE-0001",
-            "authors": "Alice",
-            "content": "<p>hello</p>",
-            "reviewManager": null,
-            "status": null
-          }
+          "proposalId": "0001",
+          "title": "SE-0001",
+          "authors": "Alice",
+          "content": "<p>hello</p>",
+          "reviewManager": null,
+          "status": null
         }
       ],
-      "meta": {}
+      "totalDocs": 1,
+      "limit": 10,
+      "totalPages": 1,
+      "page": 1,
+      "hasNextPage": false,
+      "hasPrevPage": false
     }
     """
     let data = try #require(json.data(using: .utf8))
-    let proposals = try StrapiProposalPayload.decodeProposals(from: data)
-    #expect(proposals.count == 1)
-    let first = try #require(proposals.first)
-    #expect(first.id == "1")
+    let response = try JSONDecoder().decode(PayloadListResponse<PayloadProposal>.self, from: data)
+    #expect(response.docs.count == 1)
+    let first = try #require(response.docs.first)
+    #expect(first.id == 1)
     #expect(first.proposalId == "0001")
     #expect(first.title == "SE-0001")
     #expect(first.authors == "Alice")
@@ -38,73 +41,61 @@ struct SERepositoryTests {
     #expect(first.status == nil)
   }
 
-  @Test("documentId がある場合は id に documentId を優先する")
-  func decodePrefersDocumentIdForStableId() throws {
+  @Test("PayloadProposal を SwiftEvolution に変換できる")
+  func convertToSwiftEvolution() throws {
     let json = """
     {
-      "data": [
-        {
-          "id": 1,
-          "documentId": "doc-abc",
-          "attributes": {
-            "proposalId": "0001",
-            "title": "T",
-            "authors": "A",
-            "content": "c"
-          }
-        }
-      ]
-    }
-    """
-    let data = try #require(json.data(using: .utf8))
-    let proposals = try StrapiProposalPayload.decodeProposals(from: data)
-    let first = try #require(proposals.first)
-    #expect(first.id == "doc-abc")
-  }
-
-  @Test("フラットなエントリ（attributes なし）をデコードできる")
-  func decodeFlatEntry() throws {
-    let json = """
-    {
-      "data": [
+      "docs": [
         {
           "id": 42,
           "proposalId": "0002",
           "title": "Flat",
           "authors": "Bob",
-          "content": "<div>x</div>"
+          "content": "<div>x</div>",
+          "reviewManager": "Manager",
+          "status": "Accepted"
         }
-      ]
+      ],
+      "totalDocs": 1,
+      "limit": 10,
+      "totalPages": 1,
+      "page": 1,
+      "hasNextPage": false,
+      "hasPrevPage": false
     }
     """
     let data = try #require(json.data(using: .utf8))
-    let proposals = try StrapiProposalPayload.decodeProposals(from: data)
-    let first = try #require(proposals.first)
-    #expect(first.id == "42")
-    #expect(first.proposalId == "0002")
-    #expect(first.title == "Flat")
+    let response = try JSONDecoder().decode(PayloadListResponse<PayloadProposal>.self, from: data)
+    let first = try #require(response.docs.first)
+    let se = first.toSwiftEvolution()
+    #expect(se.id == "42")
+    #expect(se.proposalId == "0002")
+    #expect(se.title == "Flat")
+    #expect(se.authors == "Bob")
+    #expect(se.reviewManager == "Manager")
+    #expect(se.status == "Accepted")
   }
 
-  @Test("id が文字列でも解釈できる")
-  func decodeStringNumericId() throws {
+  @Test("ページネーション情報を正しくデコードできる")
+  func decodePagination() throws {
     let json = """
     {
-      "data": [
-        {
-          "id": "7",
-          "attributes": {
-            "proposalId": "0003",
-            "title": "T",
-            "authors": "A",
-            "content": "c"
-          }
-        }
-      ]
+      "docs": [],
+      "totalDocs": 100,
+      "limit": 10,
+      "totalPages": 10,
+      "page": 3,
+      "hasNextPage": true,
+      "hasPrevPage": true
     }
     """
     let data = try #require(json.data(using: .utf8))
-    let proposals = try StrapiProposalPayload.decodeProposals(from: data)
-    let first = try #require(proposals.first)
-    #expect(first.id == "7")
+    let response = try JSONDecoder().decode(PayloadListResponse<PayloadProposal>.self, from: data)
+    #expect(response.totalDocs == 100)
+    #expect(response.limit == 10)
+    #expect(response.totalPages == 10)
+    #expect(response.page == 3)
+    #expect(response.hasNextPage == true)
+    #expect(response.hasPrevPage == true)
   }
 }

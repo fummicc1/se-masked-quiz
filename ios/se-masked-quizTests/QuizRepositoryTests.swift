@@ -11,9 +11,6 @@ final class QuizRepositoryTests: XCTestCase {
     userDefaults.removePersistentDomain(forName: #function)
 
     sut = QuizRepositoryImpl(
-      cloudflareR2Endpoint: "test-endpoint",
-      r2AccessKey: "test-key",
-      r2SecretKey: "test-secret",
       userDefaults: userDefaults
     )
   }

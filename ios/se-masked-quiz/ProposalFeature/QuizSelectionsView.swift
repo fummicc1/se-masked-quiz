@@ -61,11 +61,7 @@ struct QuizSelectionsView: View {
   QuizSelectionsView(
     viewModel: .init(
       proposalId: "",
-      quizRepository: QuizRepositoryImpl.init(
-        cloudflareR2Endpoint: "",
-        r2AccessKey: "",
-        r2SecretKey: ""
-      )
+      quizRepository: QuizRepositoryImpl()
     )
   )
 }
