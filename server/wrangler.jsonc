@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "se-masked-quiz-server",
   "main": ".open-next/worker.js",
-  "compatibility_date": "2025-05-14",
+  "compatibility_date": "2025-08-15",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": {
     "enabled": true
@@ -13,7 +13,7 @@
   },
   "routes": [
     {
-      "pattern": "se-masked-quiz.fummicc1.dev",
+      "pattern": "api.se-masked-quiz.fummicc1.dev",
       "custom_domain": true
     }
   ],
@@ -26,7 +26,8 @@
     {
       "binding": "DB",
       "database_name": "se-masked-quiz-db",
-      "database_id": "TODO_REPLACE_WITH_ACTUAL_ID"
+      "database_id": "c3c96adb-c9b7-4f49-b5e7-ffae7d764b5c",
+      "migrations_dir": "migrations"
     }
   ],
 
