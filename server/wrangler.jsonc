@@ -44,6 +44,8 @@
 
   /**
    * Secrets (set via `wrangler secret put`):
-   *   PAYLOAD_SECRET  - Required by Payload CMS
+   *   PAYLOAD_SECRET        - Required by Payload CMS
+   *   ADMIN_GATE_USER       - Basic Auth username for /admin
+   *   ADMIN_GATE_PASSWORD   - Basic Auth password for /admin
    */
 }
