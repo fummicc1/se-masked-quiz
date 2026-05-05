@@ -4,32 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' next build",
-    "dev": "next dev",
-    "deploy": "pnpm build && opennextjs-cloudflare && wrangler deploy",
-    "deploy:db": "wrangler d1 migrations apply se-masked-quiz-db --remote",
-    "generate:types": "payload generate:types",
+    "build": "cross-env NODE_OPTIONS='--no-deprecation --max-old-space-size=8192' next build",
+    "dev": "cross-env NODE_OPTIONS='--no-deprecation' next dev",
+    "deploy": "pnpm build && opennextjs-cloudflare build && wrangler deploy",
+    "deploy:db": "wrangler d1 execute se-masked-quiz-db --remote --file=./migrations/0001_initial.sql",
+    "generate:types": "cross-env NODE_OPTIONS='--no-deprecation' payload generate:types",
     "payload": "cross-env NODE_OPTIONS='--no-deprecation' payload"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.4.2",
-    "@payloadcms/db-d1-sqlite": "^3.82.1",
-    "@payloadcms/next": "^3.82.1",
-    "@payloadcms/richtext-lexical": "^3.82.1",
-    "@payloadcms/storage-r2": "^3.82.1",
+    "@opennextjs/cloudflare": "^1.19.6",
+    "@payloadcms/db-d1-sqlite": "3.82.1",
+    "@payloadcms/next": "3.82.1",
+    "@payloadcms/richtext-lexical": "3.82.1",
+    "@payloadcms/storage-r2": "3.82.1",
     "cross-env": "^7.0.3",
-    "graphql": "^16.10.0",
-    "next": "^16.2.3",
-    "payload": "^3.82.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "sharp": "^0.33.5"
+    "graphql": "^16.8.1",
+    "next": "15.4.11",
+    "payload": "3.82.1",
+    "react": "19.2.1",
+    "react-dom": "19.2.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260317.1",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "typescript": "^5.7.3",
-    "wrangler": "^4.14.4"
+    "wrangler": "^4.87.0"
   }
 }
