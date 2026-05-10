@@ -33,6 +33,7 @@ export const Proposals: CollectionConfig = {
       name: 'content',
       type: 'textarea',
       required: true,
+      maxLength: 500_000,
     },
     {
       name: 'reviewManager',
