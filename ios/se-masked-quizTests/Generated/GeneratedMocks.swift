@@ -9,136 +9,297 @@ import SwiftUI
 @testable import se_masked_quiz
 
 
-actor QuizRepositoryMock: QuizRepository {
+final actor QuizRepositoryMock: QuizRepository, @unchecked Sendable {
     init() { }
 
 
-    private(set) var saveScoreCallCount = 0
-    var saveScoreHandler: ((ProposalScore) async -> ())?
+    private let saveScoreState = MockoloMutex(MockoloHandlerState<Never, @Sendable (ProposalScore) async -> ()>())
+    nonisolated var saveScoreCallCount: Int {
+        return saveScoreState.withLock(\.callCount)
+    }
+    nonisolated var saveScoreHandler: (@Sendable (ProposalScore) async -> ())? {
+        get { saveScoreState.withLock(\.handler) }
+        set { saveScoreState.withLock { $0.handler = newValue } }
+    }
     func saveScore(_ score: ProposalScore) async {
-        saveScoreCallCount += 1
+        let saveScoreHandler = saveScoreState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let saveScoreHandler = saveScoreHandler {
             await saveScoreHandler(score)
         }
         
     }
 
-    private(set) var getAllScoresCallCount = 0
-    var getAllScoresHandler: (() async -> [String: ProposalScore])?
+    private let getAllScoresState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [String: ProposalScore]>())
+    nonisolated var getAllScoresCallCount: Int {
+        return getAllScoresState.withLock(\.callCount)
+    }
+    nonisolated var getAllScoresHandler: (@Sendable () async -> [String: ProposalScore])? {
+        get { getAllScoresState.withLock(\.handler) }
+        set { getAllScoresState.withLock { $0.handler = newValue } }
+    }
     func getAllScores() async -> [String: ProposalScore] {
-        getAllScoresCallCount += 1
+        let getAllScoresHandler = getAllScoresState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let getAllScoresHandler = getAllScoresHandler {
             return await getAllScoresHandler()
         }
         return [String: ProposalScore]()
     }
 
-    private(set) var getScoreCallCount = 0
-    var getScoreHandler: ((String) async -> ProposalScore?)?
+    private let getScoreState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> ProposalScore?>())
+    nonisolated var getScoreCallCount: Int {
+        return getScoreState.withLock(\.callCount)
+    }
+    nonisolated var getScoreHandler: (@Sendable (String) async -> ProposalScore?)? {
+        get { getScoreState.withLock(\.handler) }
+        set { getScoreState.withLock { $0.handler = newValue } }
+    }
     func getScore(for proposalId: String) async -> ProposalScore? {
-        getScoreCallCount += 1
+        let getScoreHandler = getScoreState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let getScoreHandler = getScoreHandler {
             return await getScoreHandler(proposalId)
         }
         return nil
     }
 
-    private(set) var fetchQuizCallCount = 0
-    var fetchQuizHandler: ((String) async throws -> [Quiz])?
+    private let fetchQuizState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async throws -> [Quiz]>())
+    nonisolated var fetchQuizCallCount: Int {
+        return fetchQuizState.withLock(\.callCount)
+    }
+    nonisolated var fetchQuizHandler: (@Sendable (String) async throws -> [Quiz])? {
+        get { fetchQuizState.withLock(\.handler) }
+        set { fetchQuizState.withLock { $0.handler = newValue } }
+    }
     func fetchQuiz(for proposalId: String) async throws -> [Quiz] {
-        fetchQuizCallCount += 1
+        let fetchQuizHandler = fetchQuizState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let fetchQuizHandler = fetchQuizHandler {
             return try await fetchQuizHandler(proposalId)
         }
         return [Quiz]()
     }
 
-    private(set) var resetScoreCallCount = 0
-    var resetScoreHandler: ((String) async -> ())?
+    private let resetScoreState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> ()>())
+    nonisolated var resetScoreCallCount: Int {
+        return resetScoreState.withLock(\.callCount)
+    }
+    nonisolated var resetScoreHandler: (@Sendable (String) async -> ())? {
+        get { resetScoreState.withLock(\.handler) }
+        set { resetScoreState.withLock { $0.handler = newValue } }
+    }
     func resetScore(for proposalId: String) async {
-        resetScoreCallCount += 1
+        let resetScoreHandler = resetScoreState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let resetScoreHandler = resetScoreHandler {
             await resetScoreHandler(proposalId)
         }
         
     }
 
-    private(set) var getAllQuizCountsCallCount = 0
-    var getAllQuizCountsHandler: (() async throws -> [String: Int])?
+    private let getAllQuizCountsState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async throws -> [String: Int]>())
+    nonisolated var getAllQuizCountsCallCount: Int {
+        return getAllQuizCountsState.withLock(\.callCount)
+    }
+    nonisolated var getAllQuizCountsHandler: (@Sendable () async throws -> [String: Int])? {
+        get { getAllQuizCountsState.withLock(\.handler) }
+        set { getAllQuizCountsState.withLock { $0.handler = newValue } }
+    }
     func getAllQuizCounts() async throws -> [String: Int] {
-        getAllQuizCountsCallCount += 1
+        let getAllQuizCountsHandler = getAllQuizCountsState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let getAllQuizCountsHandler = getAllQuizCountsHandler {
             return try await getAllQuizCountsHandler()
         }
         return [String: Int]()
     }
 
-    private(set) var saveLLMQuizzesCallCount = 0
-    var saveLLMQuizzesHandler: (([LLMQuiz], String) async -> ())?
+    private let saveLLMQuizzesState = MockoloMutex(MockoloHandlerState<Never, @Sendable ([LLMQuiz], String) async -> ()>())
+    nonisolated var saveLLMQuizzesCallCount: Int {
+        return saveLLMQuizzesState.withLock(\.callCount)
+    }
+    nonisolated var saveLLMQuizzesHandler: (@Sendable ([LLMQuiz], String) async -> ())? {
+        get { saveLLMQuizzesState.withLock(\.handler) }
+        set { saveLLMQuizzesState.withLock { $0.handler = newValue } }
+    }
     func saveLLMQuizzes(_ quizzes: [LLMQuiz], for proposalId: String) async {
-        saveLLMQuizzesCallCount += 1
+        let saveLLMQuizzesHandler = saveLLMQuizzesState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let saveLLMQuizzesHandler = saveLLMQuizzesHandler {
             await saveLLMQuizzesHandler(quizzes, proposalId)
         }
+        
     }
 
-    private(set) var getLLMQuizzesCallCount = 0
-    var getLLMQuizzesHandler: ((String) async -> [LLMQuiz])?
+    private let getLLMQuizzesState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> [LLMQuiz]>())
+    nonisolated var getLLMQuizzesCallCount: Int {
+        return getLLMQuizzesState.withLock(\.callCount)
+    }
+    nonisolated var getLLMQuizzesHandler: (@Sendable (String) async -> [LLMQuiz])? {
+        get { getLLMQuizzesState.withLock(\.handler) }
+        set { getLLMQuizzesState.withLock { $0.handler = newValue } }
+    }
     func getLLMQuizzes(for proposalId: String) async -> [LLMQuiz] {
-        getLLMQuizzesCallCount += 1
+        let getLLMQuizzesHandler = getLLMQuizzesState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let getLLMQuizzesHandler = getLLMQuizzesHandler {
             return await getLLMQuizzesHandler(proposalId)
         }
         return [LLMQuiz]()
     }
 
-    private(set) var hasLLMQuizzesCallCount = 0
-    var hasLLMQuizzesHandler: ((String) async -> Bool)?
+    private let hasLLMQuizzesState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> Bool>())
+    nonisolated var hasLLMQuizzesCallCount: Int {
+        return hasLLMQuizzesState.withLock(\.callCount)
+    }
+    nonisolated var hasLLMQuizzesHandler: (@Sendable (String) async -> Bool)? {
+        get { hasLLMQuizzesState.withLock(\.handler) }
+        set { hasLLMQuizzesState.withLock { $0.handler = newValue } }
+    }
     func hasLLMQuizzes(for proposalId: String) async -> Bool {
-        hasLLMQuizzesCallCount += 1
+        let hasLLMQuizzesHandler = hasLLMQuizzesState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let hasLLMQuizzesHandler = hasLLMQuizzesHandler {
             return await hasLLMQuizzesHandler(proposalId)
         }
         return false
     }
 
-    private(set) var deleteLLMQuizzesCallCount = 0
-    var deleteLLMQuizzesHandler: ((String) async -> ())?
+    private let deleteLLMQuizzesState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> ()>())
+    nonisolated var deleteLLMQuizzesCallCount: Int {
+        return deleteLLMQuizzesState.withLock(\.callCount)
+    }
+    nonisolated var deleteLLMQuizzesHandler: (@Sendable (String) async -> ())? {
+        get { deleteLLMQuizzesState.withLock(\.handler) }
+        set { deleteLLMQuizzesState.withLock { $0.handler = newValue } }
+    }
     func deleteLLMQuizzes(for proposalId: String) async {
-        deleteLLMQuizzesCallCount += 1
+        let deleteLLMQuizzesHandler = deleteLLMQuizzesState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let deleteLLMQuizzesHandler = deleteLLMQuizzesHandler {
             await deleteLLMQuizzesHandler(proposalId)
         }
+        
     }
 
-    private(set) var saveLLMQuizScoreCallCount = 0
-    var saveLLMQuizScoreHandler: ((LLMQuizScore) async -> ())?
+    private let saveLLMQuizScoreState = MockoloMutex(MockoloHandlerState<Never, @Sendable (LLMQuizScore) async -> ()>())
+    nonisolated var saveLLMQuizScoreCallCount: Int {
+        return saveLLMQuizScoreState.withLock(\.callCount)
+    }
+    nonisolated var saveLLMQuizScoreHandler: (@Sendable (LLMQuizScore) async -> ())? {
+        get { saveLLMQuizScoreState.withLock(\.handler) }
+        set { saveLLMQuizScoreState.withLock { $0.handler = newValue } }
+    }
     func saveLLMQuizScore(_ score: LLMQuizScore) async {
-        saveLLMQuizScoreCallCount += 1
+        let saveLLMQuizScoreHandler = saveLLMQuizScoreState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let saveLLMQuizScoreHandler = saveLLMQuizScoreHandler {
             await saveLLMQuizScoreHandler(score)
         }
+        
     }
 
-    private(set) var getLLMQuizScoreCallCount = 0
-    var getLLMQuizScoreHandler: ((String) async -> LLMQuizScore?)?
+    private let getLLMQuizScoreState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> LLMQuizScore?>())
+    nonisolated var getLLMQuizScoreCallCount: Int {
+        return getLLMQuizScoreState.withLock(\.callCount)
+    }
+    nonisolated var getLLMQuizScoreHandler: (@Sendable (String) async -> LLMQuizScore?)? {
+        get { getLLMQuizScoreState.withLock(\.handler) }
+        set { getLLMQuizScoreState.withLock { $0.handler = newValue } }
+    }
     func getLLMQuizScore(for proposalId: String) async -> LLMQuizScore? {
-        getLLMQuizScoreCallCount += 1
+        let getLLMQuizScoreHandler = getLLMQuizScoreState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let getLLMQuizScoreHandler = getLLMQuizScoreHandler {
             return await getLLMQuizScoreHandler(proposalId)
         }
         return nil
     }
 
-    private(set) var resetLLMQuizScoreCallCount = 0
-    var resetLLMQuizScoreHandler: ((String) async -> ())?
+    private let resetLLMQuizScoreState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String) async -> ()>())
+    nonisolated var resetLLMQuizScoreCallCount: Int {
+        return resetLLMQuizScoreState.withLock(\.callCount)
+    }
+    nonisolated var resetLLMQuizScoreHandler: (@Sendable (String) async -> ())? {
+        get { resetLLMQuizScoreState.withLock(\.handler) }
+        set { resetLLMQuizScoreState.withLock { $0.handler = newValue } }
+    }
     func resetLLMQuizScore(for proposalId: String) async {
-        resetLLMQuizScoreCallCount += 1
+        let resetLLMQuizScoreHandler = resetLLMQuizScoreState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
         if let resetLLMQuizScoreHandler = resetLLMQuizScoreHandler {
             await resetLLMQuizScoreHandler(proposalId)
         }
+        
     }
 }
 
+fileprivate func warnIfNotSendable<each T>(function: String = #function, _: repeat each T) {
+    print("At \(function), the captured arguments are not Sendable, it is not concurrency-safe.")
+}
 
+fileprivate func warnIfNotSendable<each T: Sendable>(function: String = #function, _: repeat each T) {
+}
+
+/// Will be replaced to `Synchronization.Mutex` in future.
+fileprivate final class MockoloMutex<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value
+    init(_ initialValue: Value) {
+        self.value = initialValue
+    }
+#if compiler(>=6.0)
+    borrowing func withLock<Result, E: Error>(_ body: (inout sending Value) throws(E) -> Result) throws(E) -> sending Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body(&value)
+    }
+#else
+    func withLock<Result>(_ body: (inout Value) throws -> Result) rethrows -> Result {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body(&value)
+    }
+#endif
+}
+
+fileprivate struct MockoloUnsafeTransfer<Value>: @unchecked Sendable {
+    var value: Value
+    init(_ value: Value) {
+        self.value = value
+    }
+}
+
+fileprivate struct MockoloHandlerState<Arg, Handler> {
+    var argValues: [MockoloUnsafeTransfer<Arg>] = []
+    var handler: Handler? = nil
+    var callCount: Int = 0
+}
 

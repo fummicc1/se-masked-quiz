@@ -12,18 +12,22 @@ IOS_ROOT="$PROJECT_ROOT/ios"
 MOCKS_DIR="$IOS_ROOT/se-masked-quizTests/Generated"
 mkdir -p "$MOCKS_DIR"
 
-# Check if mockolo is installed
-if ! command -v mockolo &> /dev/null; then
-    echo "❌ Error: mockolo is not installed"
-    echo "Please install mockolo with: brew install mockolo"
+# Check if mint is installed
+if ! command -v mint &> /dev/null; then
+    echo "❌ Error: mint is not installed"
+    echo "Please install mint with: brew install mint"
     exit 1
 fi
 
-# Run mockolo to generate mocks
+# Ensure pinned mockolo is bootstrapped from Mintfile
+echo "📦 Bootstrapping mockolo from Mintfile..."
+(cd "$IOS_ROOT" && mint bootstrap --mintfile Mintfile)
+
+# Run mockolo (pinned by Mintfile) to generate mocks
 echo "🎭 Running mockolo..."
-mockolo \
+(cd "$IOS_ROOT" && mint run mockolo \
   --sourcedirs "$IOS_ROOT/se-masked-quiz" \
   --destination "$MOCKS_DIR/GeneratedMocks.swift" \
-  --testable-imports se_masked_quiz
+  --testable-imports se_masked_quiz)
 
 echo "✅ Mocks generated successfully at $MOCKS_DIR/GeneratedMocks.swift"
