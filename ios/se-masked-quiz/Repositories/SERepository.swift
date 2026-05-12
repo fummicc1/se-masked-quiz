@@ -31,10 +31,15 @@ enum SERepositoryError: Error, LocalizedError, Equatable {
 struct SERepository: Sendable {
   private static let pageSize = 10
 
-  func fetch(page: Int) async throws -> PayloadListResponse<PayloadProposal> {
+  func fetch(page: Int, searchText: String? = nil) async throws -> PayloadListResponse<PayloadProposal> {
     let baseURL = Env.serverBaseURL
     let apiKey = Env.serverApiKey
-    let requestURL = try Self.proposalsURL(baseURL: baseURL, page: page, limit: Self.pageSize)
+    let requestURL = try Self.proposalsURL(
+      baseURL: baseURL,
+      page: page,
+      limit: Self.pageSize,
+      searchText: searchText
+    )
     var request = URLRequest(url: requestURL)
     request.httpMethod = "GET"
     request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -57,7 +62,12 @@ struct SERepository: Sendable {
     }
   }
 
-  private static func proposalsURL(baseURL: String, page: Int, limit: Int) throws -> URL {
+  static func proposalsURL(
+    baseURL: String,
+    page: Int,
+    limit: Int,
+    searchText: String? = nil
+  ) throws -> URL {
     var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     while trimmed.hasSuffix("/") {
       trimmed.removeLast()
@@ -65,11 +75,18 @@ struct SERepository: Sendable {
     guard var components = URLComponents(string: "\(trimmed)/api/proposals") else {
       throw SERepositoryError.invalidBaseURL
     }
-    components.queryItems = [
+    var items: [URLQueryItem] = [
       URLQueryItem(name: "page", value: String(page)),
       URLQueryItem(name: "limit", value: String(limit)),
       URLQueryItem(name: "sort", value: "proposalId"),
     ]
+    let trimmedSearch = (searchText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    if !trimmedSearch.isEmpty {
+      items.append(URLQueryItem(name: "where[or][0][title][contains]", value: trimmedSearch))
+      items.append(URLQueryItem(name: "where[or][1][proposalId][contains]", value: trimmedSearch))
+      items.append(URLQueryItem(name: "where[or][2][authors][contains]", value: trimmedSearch))
+    }
+    components.queryItems = items
     guard let url = components.url else {
       throw SERepositoryError.invalidBaseURL
     }

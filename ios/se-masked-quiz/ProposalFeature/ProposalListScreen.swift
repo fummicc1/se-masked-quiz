@@ -18,68 +18,13 @@ struct ProposalListScreen: View {
   @State private var showsSetting: Bool = false
   @State private var quizProgresses: [String: ProposalProgress] = [:]
   @State private var isLoadingProgress: Bool = false
+  @State private var searchText: String = ""
+  @State private var debouncedSearchText: String = ""
 
   var body: some View {
     GeometryReader { proxy in
       NavigationStack {
-        List {
-          ForEach(proposals.content) { proposal in
-            NavigationLink(value: proposal) {
-              VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                  MarkdownText(proposal.title)
-                    .font(.headline)
-                  Text("#\(Int(proposal.proposalId) ?? 0)")
-                    .font(.caption)
-                }
-                MarkdownText(proposal.status ?? "")
-                  .font(.subheadline)
-                MarkdownText(proposal.authors)
-                  .font(.subheadline)
-                MarkdownText(proposal.reviewManager ?? "")
-                  .font(.subheadline)
-
-                // 進捗表示
-                if let progress = quizProgresses[proposal.proposalId] {
-                  QuizProgressView(progress: progress)
-                    .padding(.top, 4)
-                }
-              }
-            }
-            .onAppear {
-              guard let proposalIndex = proposals.content.firstIndex(of: proposal) else {
-                return
-              }
-              shouldLoadNextPage = proposalIndex >= proposals.content.count - 5
-            }
-          }
-        }
-        .navigationTitle("Swift Evolution")
-        .navigationDestination(for: SwiftEvolution.self) { proposal in
-          ProposalQuizView(
-            proposal: proposal,
-            quizRepository: quizRepository
-          )
-        }
-        .toolbar {
-          #if os(iOS)
-            ToolbarItem(placement: .topBarLeading) {
-              Button {
-                showsSetting = true
-              } label: {
-                Image(systemName: "gearshape")
-              }
-            }
-          #elseif os(macOS)
-            ToolbarItem(placement: .navigation) {
-              Button {
-                showsSetting = true
-              } label: {
-                Image(systemName: "gearshape")
-              }
-            }
-          #endif
-        }
+        proposalsList
       }
       .sheet(isPresented: $showsSetting) {
         SettingScreen()
@@ -94,7 +39,10 @@ struct ProposalListScreen: View {
             proposals.startLoading()
             Task {
               do {
-                let response = try await repository.fetch(page: currentPage)
+                let response = try await repository.fetch(
+                  page: currentPage,
+                  searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText
+                )
                 hasNextPage = response.hasNextPage
                 var currentProposals = proposals.content
                 currentProposals.append(contentsOf: response.docs.map { $0.toSwiftEvolution() })
@@ -107,6 +55,29 @@ struct ProposalListScreen: View {
           }
         }
       )
+      .task(id: searchText) {
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled else { return }
+        debouncedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+      }
+      .onChange(of: debouncedSearchText) { _, newValue in
+        currentPage = 1
+        hasNextPage = true
+        proposals = .loading([])
+        Task {
+          do {
+            let response = try await repository.fetch(
+              page: currentPage,
+              searchText: newValue.isEmpty ? nil : newValue
+            )
+            hasNextPage = response.hasNextPage
+            proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
+            currentPage += 1
+          } catch {
+            proposals = .error(error)
+          }
+        }
+      }
       .task {
         if !proposals.content.isEmpty || proposals.isLoading {
           return
@@ -166,6 +137,78 @@ struct ProposalListScreen: View {
     }
   }
 
+  // MARK: - Subviews
+
+  @ViewBuilder
+  private var proposalsList: some View {
+    List {
+      ForEach(proposals.content) { proposal in
+        NavigationLink(value: proposal) {
+          VStack(alignment: .leading, spacing: 8) {
+            HStack {
+              MarkdownText(proposal.title)
+                .font(.headline)
+              Text("#\(Int(proposal.proposalId) ?? 0)")
+                .font(.caption)
+            }
+            MarkdownText(proposal.status ?? "")
+              .font(.subheadline)
+            MarkdownText(proposal.authors)
+              .font(.subheadline)
+            MarkdownText(proposal.reviewManager ?? "")
+              .font(.subheadline)
+
+            if let progress = quizProgresses[proposal.proposalId] {
+              QuizProgressView(progress: progress)
+                .padding(.top, 4)
+            }
+          }
+        }
+        .onAppear {
+          guard let proposalIndex = proposals.content.firstIndex(of: proposal) else {
+            return
+          }
+          shouldLoadNextPage = proposalIndex >= proposals.content.count - 5
+        }
+      }
+    }
+    .overlay {
+      if proposals.content.isEmpty,
+        !proposals.isLoading,
+        !debouncedSearchText.isEmpty
+      {
+        ContentUnavailableView.search(text: debouncedSearchText)
+      }
+    }
+    .navigationTitle("Swift Evolution")
+    .modifier(ProposalListSearchableModifier(searchText: $searchText))
+    .navigationDestination(for: SwiftEvolution.self) { proposal in
+      ProposalQuizView(
+        proposal: proposal,
+        quizRepository: quizRepository
+      )
+    }
+    .toolbar {
+      #if os(iOS)
+        ToolbarItem(placement: .topBarLeading) {
+          Button {
+            showsSetting = true
+          } label: {
+            Image(systemName: "gearshape")
+          }
+        }
+      #elseif os(macOS)
+        ToolbarItem(placement: .navigation) {
+          Button {
+            showsSetting = true
+          } label: {
+            Image(systemName: "gearshape")
+          }
+        }
+      #endif
+    }
+  }
+
   // MARK: - Private Methods
 
   /// クイズの進捗情報を読み込む
@@ -201,6 +244,25 @@ struct ProposalListScreen: View {
       print("Failed to load quiz progresses:", error)
       // エラー時も進捗なしで表示を継続
     }
+  }
+}
+
+private struct ProposalListSearchableModifier: ViewModifier {
+  @Binding var searchText: String
+
+  func body(content: Content) -> some View {
+    #if os(iOS)
+      content.searchable(
+        text: $searchText,
+        placement: .navigationBarDrawer(displayMode: .always),
+        prompt: "タイトル / 提案ID / 著者で検索"
+      )
+    #else
+      content.searchable(
+        text: $searchText,
+        prompt: "タイトル / 提案ID / 著者で検索"
+      )
+    #endif
   }
 }
 
