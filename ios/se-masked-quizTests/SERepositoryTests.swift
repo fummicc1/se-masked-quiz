@@ -76,6 +76,47 @@ struct SERepositoryTests {
     #expect(se.status == "Accepted")
   }
 
+  @Test("searchText未指定時は where 系クエリを含まない")
+  func proposalsURLWithoutSearchText() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com/",
+      page: 1,
+      limit: 10
+    )
+    let query = url.query ?? ""
+    #expect(query.contains("page=1"))
+    #expect(query.contains("limit=10"))
+    #expect(query.contains("sort=proposalId"))
+    #expect(!query.contains("where"))
+  }
+
+  @Test("searchText指定時は title/proposalId/authors への contains クエリが含まれる")
+  func proposalsURLWithSearchText() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 2,
+      limit: 10,
+      searchText: "actor"
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "page", value: "2")))
+    #expect(items.contains(URLQueryItem(name: "where[or][0][title][contains]", value: "actor")))
+    #expect(items.contains(URLQueryItem(name: "where[or][1][proposalId][contains]", value: "actor")))
+    #expect(items.contains(URLQueryItem(name: "where[or][2][authors][contains]", value: "actor")))
+  }
+
+  @Test("searchText が空白のみの場合は where 系クエリを含まない")
+  func proposalsURLWithWhitespaceSearchText() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      searchText: "   "
+    )
+    let query = url.query ?? ""
+    #expect(!query.contains("where"))
+  }
+
   @Test("ページネーション情報を正しくデコードできる")
   func decodePagination() throws {
     let json = """
