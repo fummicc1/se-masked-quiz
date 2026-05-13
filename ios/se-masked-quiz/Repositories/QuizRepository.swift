@@ -11,7 +11,7 @@ import SwiftUI
 // MARK: - Repository Protocol
 
 /// @mockable
-protocol QuizRepository: Actor {
+protocol QuizRepository: Actor, Sendable {
   /// Save the score for a proposal (mask quiz)
   func saveScore(_ score: ProposalScore) async
 
