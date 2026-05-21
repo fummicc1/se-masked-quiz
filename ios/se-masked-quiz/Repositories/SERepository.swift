@@ -8,6 +8,20 @@
 import Foundation
 import SwiftUI
 
+enum ProposalSortOrder: String, CaseIterable, Sendable, Hashable {
+  case ascending
+  case descending
+
+  var queryValue: String {
+    switch self {
+    case .ascending:
+      return "proposalId"
+    case .descending:
+      return "-proposalId"
+    }
+  }
+}
+
 enum SERepositoryError: Error, LocalizedError, Equatable {
   case invalidBaseURL
   case httpStatus(Int)
@@ -31,14 +45,19 @@ enum SERepositoryError: Error, LocalizedError, Equatable {
 struct SERepository: Sendable {
   private static let pageSize = 10
 
-  func fetch(page: Int, searchText: String? = nil) async throws -> PayloadListResponse<PayloadProposal> {
+  func fetch(
+    page: Int,
+    searchText: String? = nil,
+    sortOrder: ProposalSortOrder = .descending
+  ) async throws -> PayloadListResponse<PayloadProposal> {
     let baseURL = Env.serverBaseURL
     let apiKey = Env.serverApiKey
     let requestURL = try Self.proposalsURL(
       baseURL: baseURL,
       page: page,
       limit: Self.pageSize,
-      searchText: searchText
+      searchText: searchText,
+      sortOrder: sortOrder
     )
     var request = URLRequest(url: requestURL)
     request.httpMethod = "GET"
@@ -66,7 +85,8 @@ struct SERepository: Sendable {
     baseURL: String,
     page: Int,
     limit: Int,
-    searchText: String? = nil
+    searchText: String? = nil,
+    sortOrder: ProposalSortOrder = .descending
   ) throws -> URL {
     var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     while trimmed.hasSuffix("/") {
@@ -78,7 +98,7 @@ struct SERepository: Sendable {
     var items: [URLQueryItem] = [
       URLQueryItem(name: "page", value: String(page)),
       URLQueryItem(name: "limit", value: String(limit)),
-      URLQueryItem(name: "sort", value: "proposalId"),
+      URLQueryItem(name: "sort", value: sortOrder.queryValue),
     ]
     let trimmedSearch = (searchText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     if !trimmedSearch.isEmpty {

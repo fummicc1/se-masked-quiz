@@ -76,7 +76,7 @@ struct SERepositoryTests {
     #expect(se.status == "Accepted")
   }
 
-  @Test("searchText未指定時は where 系クエリを含まない")
+  @Test("searchText未指定時は where 系クエリを含まず、デフォルトで降順ソートになる")
   func proposalsURLWithoutSearchText() throws {
     let url = try SERepository.proposalsURL(
       baseURL: "https://example.com/",
@@ -86,8 +86,32 @@ struct SERepositoryTests {
     let query = url.query ?? ""
     #expect(query.contains("page=1"))
     #expect(query.contains("limit=10"))
-    #expect(query.contains("sort=proposalId"))
+    #expect(query.contains("sort=-proposalId"))
     #expect(!query.contains("where"))
+  }
+
+  @Test("sortOrder=ascending のとき sort=proposalId が指定される")
+  func proposalsURLAscendingSort() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      sortOrder: .ascending
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "sort", value: "proposalId")))
+  }
+
+  @Test("sortOrder=descending のとき sort=-proposalId が指定される")
+  func proposalsURLDescendingSort() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      sortOrder: .descending
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "sort", value: "-proposalId")))
   }
 
   @Test("searchText指定時は title/proposalId/authors への contains クエリが含まれる")
