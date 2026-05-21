@@ -20,6 +20,7 @@ struct ProposalListScreen: View {
   @State private var isLoadingProgress: Bool = false
   @State private var searchText: String = ""
   @State private var debouncedSearchText: String = ""
+  @State private var sortOrder: ProposalSortOrder = .ascending
 
   var body: some View {
     GeometryReader { proxy in
@@ -41,7 +42,8 @@ struct ProposalListScreen: View {
               do {
                 let response = try await repository.fetch(
                   page: currentPage,
-                  searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText
+                  searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText,
+                  sortOrder: sortOrder
                 )
                 hasNextPage = response.hasNextPage
                 var currentProposals = proposals.content
@@ -61,22 +63,10 @@ struct ProposalListScreen: View {
         debouncedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
       }
       .onChange(of: debouncedSearchText) { _, newValue in
-        currentPage = 1
-        hasNextPage = true
-        proposals = .loading([])
-        Task {
-          do {
-            let response = try await repository.fetch(
-              page: currentPage,
-              searchText: newValue.isEmpty ? nil : newValue
-            )
-            hasNextPage = response.hasNextPage
-            proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
-            currentPage += 1
-          } catch {
-            proposals = .error(error)
-          }
-        }
+        reloadFromFirstPage(searchText: newValue, sortOrder: sortOrder)
+      }
+      .onChange(of: sortOrder) { _, newValue in
+        reloadFromFirstPage(searchText: debouncedSearchText, sortOrder: newValue)
       }
       .task {
         if !proposals.content.isEmpty || proposals.isLoading {
@@ -84,7 +74,7 @@ struct ProposalListScreen: View {
         }
         do {
           proposals.startLoading()
-          let response = try await repository.fetch(page: currentPage)
+          let response = try await repository.fetch(page: currentPage, sortOrder: sortOrder)
           hasNextPage = response.hasNextPage
           self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
           currentPage += 1
@@ -197,6 +187,9 @@ struct ProposalListScreen: View {
             Image(systemName: "gearshape")
           }
         }
+        ToolbarItem(placement: .topBarTrailing) {
+          sortMenu
+        }
       #elseif os(macOS)
         ToolbarItem(placement: .navigation) {
           Button {
@@ -205,11 +198,46 @@ struct ProposalListScreen: View {
             Image(systemName: "gearshape")
           }
         }
+        ToolbarItem(placement: .primaryAction) {
+          sortMenu
+        }
       #endif
     }
   }
 
+  private var sortMenu: some View {
+    Menu {
+      Picker("並び順", selection: $sortOrder) {
+        Label("提案番号 昇順", systemImage: "arrow.up").tag(ProposalSortOrder.ascending)
+        Label("提案番号 降順", systemImage: "arrow.down").tag(ProposalSortOrder.descending)
+      }
+    } label: {
+      Image(systemName: "arrow.up.arrow.down")
+        .accessibilityLabel("並び順")
+    }
+  }
+
   // MARK: - Private Methods
+
+  private func reloadFromFirstPage(searchText: String, sortOrder: ProposalSortOrder) {
+    currentPage = 1
+    hasNextPage = true
+    proposals = .loading([])
+    Task {
+      do {
+        let response = try await repository.fetch(
+          page: currentPage,
+          searchText: searchText.isEmpty ? nil : searchText,
+          sortOrder: sortOrder
+        )
+        hasNextPage = response.hasNextPage
+        proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
+        currentPage += 1
+      } catch {
+        proposals = .error(error)
+      }
+    }
+  }
 
   /// クイズの進捗情報を読み込む
   private func loadQuizProgresses() async {

@@ -90,6 +90,30 @@ struct SERepositoryTests {
     #expect(!query.contains("where"))
   }
 
+  @Test("sortOrder=ascending のとき sort=proposalId が指定される")
+  func proposalsURLAscendingSort() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      sortOrder: .ascending
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "sort", value: "proposalId")))
+  }
+
+  @Test("sortOrder=descending のとき sort=-proposalId が指定される")
+  func proposalsURLDescendingSort() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      sortOrder: .descending
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "sort", value: "-proposalId")))
+  }
+
   @Test("searchText指定時は title/proposalId/authors への contains クエリが含まれる")
   func proposalsURLWithSearchText() throws {
     let url = try SERepository.proposalsURL(
