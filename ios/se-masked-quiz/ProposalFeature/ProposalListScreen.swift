@@ -20,7 +20,7 @@ struct ProposalListScreen: View {
   @State private var isLoadingProgress: Bool = false
   @State private var searchText: String = ""
   @State private var debouncedSearchText: String = ""
-  @State private var sortOrder: ProposalSortOrder = .ascending
+  @State private var sortOrder: ProposalSortOrder = .descending
 
   var body: some View {
     GeometryReader { proxy in

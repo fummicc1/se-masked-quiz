@@ -48,7 +48,7 @@ struct SERepository: Sendable {
   func fetch(
     page: Int,
     searchText: String? = nil,
-    sortOrder: ProposalSortOrder = .ascending
+    sortOrder: ProposalSortOrder = .descending
   ) async throws -> PayloadListResponse<PayloadProposal> {
     let baseURL = Env.serverBaseURL
     let apiKey = Env.serverApiKey
@@ -86,7 +86,7 @@ struct SERepository: Sendable {
     page: Int,
     limit: Int,
     searchText: String? = nil,
-    sortOrder: ProposalSortOrder = .ascending
+    sortOrder: ProposalSortOrder = .descending
   ) throws -> URL {
     var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     while trimmed.hasSuffix("/") {
