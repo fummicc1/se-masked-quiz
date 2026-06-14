@@ -16,7 +16,6 @@
     "@payloadcms/db-d1-sqlite": "3.82.1",
     "@payloadcms/next": "3.82.1",
     "@payloadcms/richtext-lexical": "3.82.1",
-    "@payloadcms/storage-r2": "3.82.1",
     "cross-env": "^7.0.3",
     "graphql": "^16.8.1",
     "next": "15.4.11",

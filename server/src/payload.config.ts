@@ -58,14 +58,24 @@ const cloudflare =
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
 
+if (!process.env.PAYLOAD_SECRET) {
+  throw new Error('PAYLOAD_SECRET environment variable is required')
+}
+
 export default buildConfig({
-  secret: process.env.PAYLOAD_SECRET || 'dev-secret-replace-in-production',
+  secret: process.env.PAYLOAD_SECRET,
   db: sqliteD1Adapter({
     binding: cloudflare.env.DB,
   }),
   editor: lexicalEditor(),
   collections: [Users, Proposals, QuizAnswers],
   logger: isProduction ? cloudflareLogger : undefined,
+  // iOS app is the only client; browsers must not be able to call this API.
+  cors: [],
+  csrf: [],
+  graphQL: {
+    disable: true,
+  },
   admin: {
     user: Users.slug,
     importMap: {

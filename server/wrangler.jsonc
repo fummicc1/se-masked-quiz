@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "se-masked-quiz-server",
   "main": ".open-next/worker.js",
-  "compatibility_date": "2025-08-15",
+  "compatibility_date": "2026-04-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": {
     "enabled": true
@@ -40,12 +40,41 @@
       "binding": "QUIZ_BUCKET",
       "bucket_name": "se-masked-quiz"
     }
+  ],
+
+  /**
+   * Rate Limiting bindings (free with Workers plan).
+   * https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+   *
+   * RL_API   : 60 req / 10s per IP for public REST API (proposals, quiz-answers).
+   * RL_ADMIN : 5 req / 60s per IP for /admin (Basic Auth brute force protection).
+   *
+   * `namespace_id` must be a unique integer per binding within this account.
+   * `period` must be either 10 or 60.
+   */
+  "ratelimits": [
+    {
+      "name": "RL_API",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 60,
+        "period": 10
+      }
+    },
+    {
+      "name": "RL_ADMIN",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    }
   ]
 
   /**
    * Secrets (set via `wrangler secret put`):
-   *   PAYLOAD_SECRET        - Required by Payload CMS
+   *   PAYLOAD_SECRET        - Required by Payload CMS (must be set, no fallback)
    *   ADMIN_GATE_USER       - Basic Auth username for /admin
-   *   ADMIN_GATE_PASSWORD   - Basic Auth password for /admin
+   *   ADMIN_GATE_PASSWORD   - Basic Auth password for /admin (recommend 64+ random chars)
    */
 }
