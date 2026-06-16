@@ -9,6 +9,12 @@ export const Users: CollectionConfig = {
     useAPIKey: true,
     maxLoginAttempts: 5,
     lockTime: 10 * 60 * 1000,
+    tokenExpiration: 2 * 60 * 60,
+    verify: false,
+    cookies: {
+      sameSite: 'Lax',
+      secure: true,
+    },
   },
   fields: [],
 }
