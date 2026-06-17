@@ -58,12 +58,17 @@ const cloudflare =
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
 
-if (!process.env.PAYLOAD_SECRET) {
+// Cloudflare Workers Builds does not expose runtime secrets during `next build`,
+// so the secret is only enforced at runtime. The placeholder is never used in
+// production: at runtime the real secret is required or startup fails below.
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+
+if (!isBuildPhase && !process.env.PAYLOAD_SECRET) {
   throw new Error('PAYLOAD_SECRET environment variable is required')
 }
 
 export default buildConfig({
-  secret: process.env.PAYLOAD_SECRET,
+  secret: process.env.PAYLOAD_SECRET || 'build-time-placeholder-never-used-at-runtime',
   db: sqliteD1Adapter({
     binding: cloudflare.env.DB,
   }),
