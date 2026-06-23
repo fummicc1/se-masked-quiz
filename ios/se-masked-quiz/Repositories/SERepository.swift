@@ -81,6 +81,39 @@ struct SERepository: Sendable {
     }
   }
 
+  /// 提案IDを指定して単一の提案を取得する（デイリーチャレンジ用）
+  func fetchProposal(byProposalId proposalId: String) async throws -> SwiftEvolution? {
+    let baseURL = Env.serverBaseURL
+    let apiKey = Env.serverApiKey
+    var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    while trimmed.hasSuffix("/") {
+      trimmed.removeLast()
+    }
+    guard var components = URLComponents(string: "\(trimmed)/api/proposals") else {
+      throw SERepositoryError.invalidBaseURL
+    }
+    components.queryItems = [
+      URLQueryItem(name: "where[proposalId][equals]", value: proposalId),
+      URLQueryItem(name: "limit", value: "1"),
+    ]
+    guard let url = components.url else {
+      throw SERepositoryError.invalidBaseURL
+    }
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("users API-Key \(apiKey)", forHTTPHeaderField: "Authorization")
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let http = response as? HTTPURLResponse else {
+      throw SERepositoryError.httpStatus(-1)
+    }
+    guard (200 ... 299).contains(http.statusCode) else {
+      throw SERepositoryError.httpStatus(http.statusCode)
+    }
+    let decoded = try JSONDecoder().decode(PayloadListResponse<PayloadProposal>.self, from: data)
+    return decoded.docs.first?.toSwiftEvolution()
+  }
+
   static func proposalsURL(
     baseURL: String,
     page: Int,
