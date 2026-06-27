@@ -141,6 +141,57 @@ struct SERepositoryTests {
     #expect(!query.contains("where"))
   }
 
+  @Test("proposalsByIdsURL は where[proposalId][in] とカンマ区切りIDを含む")
+  func proposalsByIdsURL() throws {
+    let url = try SERepository.proposalsByIdsURL(
+      baseURL: "https://example.com/",
+      proposalIds: ["0005", "0023"]
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "where[proposalId][in]", value: "0005,0023")))
+    #expect(items.contains(URLQueryItem(name: "limit", value: "2")))
+  }
+
+  @Test("graphNodesURL は in と select[proposalId]/select[title] を含み content を要求しない")
+  func graphNodesURL() throws {
+    let url = try SERepository.graphNodesURL(
+      baseURL: "https://example.com",
+      proposalIds: ["0005", "0023"]
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "where[proposalId][in]", value: "0005,0023")))
+    #expect(items.contains(URLQueryItem(name: "select[proposalId]", value: "true")))
+    #expect(items.contains(URLQueryItem(name: "select[title]", value: "true")))
+    let query = url.query ?? ""
+    #expect(!query.contains("select%5Bcontent%5D"))
+  }
+
+  @Test("PayloadProposalNode を select レスポンスからデコードできる（content 不要）")
+  func decodeGraphNode() throws {
+    let json = """
+    {
+      "docs": [ { "id": 7, "proposalId": "0304", "title": "Structured Concurrency" } ],
+      "totalDocs": 1, "limit": 1, "totalPages": 1, "page": 1,
+      "hasNextPage": false, "hasPrevPage": false
+    }
+    """
+    let data = try #require(json.data(using: .utf8))
+    let response = try JSONDecoder().decode(PayloadListResponse<PayloadProposalNode>.self, from: data)
+    let first = try #require(response.docs.first)
+    #expect(first.proposalId == "0304")
+    #expect(first.title == "Structured Concurrency")
+  }
+
+  @Test("PayloadHTTP.chunked は指定サイズで分割する")
+  func chunked() {
+    let ids = (1 ... 5).map { String($0) }
+    let chunks = PayloadHTTP.chunked(ids, size: 2)
+    #expect(chunks.count == 3)
+    #expect(chunks.first == ["1", "2"])
+    #expect(chunks.last == ["5"])
+    #expect(PayloadHTTP.chunked([], size: 2).isEmpty)
+  }
+
   @Test("ページネーション情報を正しくデコードできる")
   func decodePagination() throws {
     let json = """

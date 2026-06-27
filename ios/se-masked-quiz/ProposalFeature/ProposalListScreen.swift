@@ -193,6 +193,12 @@ struct ProposalListScreen: View {
         analytics: analytics
       )
     }
+    .navigationDestination(for: DependencyGraphRoute.self) { route in
+      DependencyGraphScreen(
+        rootProposalId: route.rootProposalId,
+        rootTitle: route.rootTitle
+      )
+    }
     .toolbar {
       #if os(iOS)
         ToolbarItem(placement: .topBarLeading) {

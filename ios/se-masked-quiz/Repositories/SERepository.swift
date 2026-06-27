@@ -81,6 +81,31 @@ struct SERepository: Sendable {
     }
   }
 
+  /// 複数の提案IDをまとめて取得する（前提提案チップ用。本文含むフル取得）
+  func fetchProposals(byProposalIds ids: [String]) async throws -> [SwiftEvolution] {
+    guard !ids.isEmpty else { return [] }
+    var result: [SwiftEvolution] = []
+    for chunk in PayloadHTTP.chunked(ids, size: 50) {
+      let url = try Self.proposalsByIdsURL(baseURL: Env.serverBaseURL, proposalIds: chunk)
+      let decoded: PayloadListResponse<PayloadProposal> = try await PayloadHTTP.get(url)
+      result.append(contentsOf: decoded.docs.map { $0.toSwiftEvolution() })
+    }
+    return result
+  }
+
+  /// グラフ描画用に提案IDから軽量ノード（proposalId/title のみ）を取得する。
+  /// `select` で巨大な content を転送しない。
+  func fetchGraphNodes(byProposalIds ids: [String]) async throws -> [GraphProposalNode] {
+    guard !ids.isEmpty else { return [] }
+    var result: [GraphProposalNode] = []
+    for chunk in PayloadHTTP.chunked(ids, size: 50) {
+      let url = try Self.graphNodesURL(baseURL: Env.serverBaseURL, proposalIds: chunk)
+      let decoded: PayloadListResponse<PayloadProposalNode> = try await PayloadHTTP.get(url)
+      result.append(contentsOf: decoded.docs.map { GraphProposalNode(proposalId: $0.proposalId, title: $0.title) })
+    }
+    return result
+  }
+
   /// 提案IDを指定して単一の提案を取得する（デイリーチャレンジ用）
   func fetchProposal(byProposalId proposalId: String) async throws -> SwiftEvolution? {
     let baseURL = Env.serverBaseURL
@@ -145,6 +170,92 @@ struct SERepository: Sendable {
     }
     return url
   }
+
+  static func proposalsByIdsURL(baseURL: String, proposalIds: [String]) throws -> URL {
+    var components = try PayloadHTTP.components(baseURL: baseURL, path: "/api/proposals")
+    components.queryItems = [
+      URLQueryItem(name: "where[proposalId][in]", value: proposalIds.joined(separator: ",")),
+      URLQueryItem(name: "limit", value: String(max(proposalIds.count, 1))),
+    ]
+    guard let url = components.url else {
+      throw SERepositoryError.invalidBaseURL
+    }
+    return url
+  }
+
+  static func graphNodesURL(baseURL: String, proposalIds: [String]) throws -> URL {
+    var components = try PayloadHTTP.components(baseURL: baseURL, path: "/api/proposals")
+    components.queryItems = [
+      URLQueryItem(name: "where[proposalId][in]", value: proposalIds.joined(separator: ",")),
+      URLQueryItem(name: "select[proposalId]", value: "true"),
+      URLQueryItem(name: "select[title]", value: "true"),
+      URLQueryItem(name: "limit", value: String(max(proposalIds.count, 1))),
+    ]
+    guard let url = components.url else {
+      throw SERepositoryError.invalidBaseURL
+    }
+    return url
+  }
+}
+
+// MARK: - Shared Payload HTTP helpers
+
+/// 認証ヘッダ付き GET と共通デコードをまとめた Payload REST のヘルパー。
+enum PayloadHTTP {
+  static func components(baseURL: String, path: String) throws -> URLComponents {
+    var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    while trimmed.hasSuffix("/") {
+      trimmed.removeLast()
+    }
+    guard let components = URLComponents(string: "\(trimmed)\(path)") else {
+      throw SERepositoryError.invalidBaseURL
+    }
+    return components
+  }
+
+  static func get<T: Decodable & Sendable>(_ url: URL) async throws -> T {
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("users API-Key \(Env.serverApiKey)", forHTTPHeaderField: "Authorization")
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let http = response as? HTTPURLResponse else {
+      throw SERepositoryError.httpStatus(-1)
+    }
+    guard (200 ... 299).contains(http.statusCode) else {
+      throw SERepositoryError.httpStatus(http.statusCode)
+    }
+    guard !data.isEmpty else {
+      throw SERepositoryError.emptyResponseBody
+    }
+    do {
+      return try JSONDecoder().decode(T.self, from: data)
+    } catch {
+      throw SERepositoryError.decodingFailed
+    }
+  }
+
+  /// `where[...][in]` のリストが長くなりすぎないよう一定数で分割する。
+  static func chunked(_ ids: [String], size: Int) -> [[String]] {
+    guard size > 0 else { return ids.isEmpty ? [] : [ids] }
+    return stride(from: 0, to: ids.count, by: size).map {
+      Array(ids[$0 ..< min($0 + size, ids.count)])
+    }
+  }
+}
+
+// MARK: - Graph node models
+
+/// `select` で title のみ取得した軽量な提案ノード。
+struct PayloadProposalNode: Decodable, Sendable {
+  let proposalId: String
+  let title: String
+}
+
+struct GraphProposalNode: Sendable, Hashable, Identifiable {
+  var id: String { proposalId }
+  let proposalId: String
+  let title: String
 }
 
 // MARK: - Payload REST API Response Models

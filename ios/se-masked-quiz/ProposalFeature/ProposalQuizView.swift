@@ -10,6 +10,8 @@ import SwiftUI
 struct ProposalQuizView: View {
 
   @Environment(\.llmService) var llmService
+  @Environment(\.seRepository) var seRepository
+  @Environment(\.referenceRepository) var referenceRepository
 
   @State private var modalWebUrl: URL?
   @StateObject var quizViewModel: QuizViewModel
@@ -18,6 +20,7 @@ struct ProposalQuizView: View {
   @State private var showsLLMQuizView = false
   @State private var showsModelRequiredAlert = false
   @State private var isModelAvailable = false
+  @State private var relatedProposals: [SwiftEvolution] = []
 
   let proposal: SwiftEvolution
 
@@ -58,6 +61,37 @@ struct ProposalQuizView: View {
         .padding()
       }
 
+      if !relatedProposals.isEmpty {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("先に読むと理解しやすい提案")
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding(.horizontal)
+          ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+              ForEach(relatedProposals) { related in
+                NavigationLink(value: related) {
+                  HStack(spacing: 4) {
+                    Text("#\(Int(related.proposalId) ?? 0)")
+                      .font(.caption2)
+                      .bold()
+                    MarkdownText(related.title)
+                      .font(.caption2)
+                      .lineLimit(1)
+                  }
+                  .padding(.horizontal, 10)
+                  .padding(.vertical, 6)
+                  .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+              }
+            }
+            .padding(.horizontal)
+          }
+        }
+        .padding(.vertical, 4)
+      }
+
       DefaultWebView(
         htmlContent: .string(proposal.content),
         onNavigate: { url in
@@ -79,6 +113,17 @@ struct ProposalQuizView: View {
       .navigationBarTitleDisplayMode(.inline)
     #endif
     .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        NavigationLink(
+          value: DependencyGraphRoute(
+            rootProposalId: proposal.proposalId,
+            rootTitle: proposal.title
+          )
+        ) {
+          Image(systemName: "point.3.connected.trianglepath.dotted")
+            .accessibilityLabel("依存グラフ")
+        }
+      }
       ToolbarItem(placement: .primaryAction) {
         Button {
           if quizViewModel.hasLLMQuizzes {
@@ -118,6 +163,9 @@ struct ProposalQuizView: View {
     .task {
       await quizViewModel.configure()
     }
+    .task {
+      await loadRelatedProposals()
+    }
     .onAppear {
       Task {
         isModelAvailable = await llmService.isModelDownloaded(named: LLMModelConfig.modelId)
@@ -138,6 +186,20 @@ struct ProposalQuizView: View {
       }
     } message: {
       Text("このプロポーザルのクイズの進捗をリセットしますか？\nこの操作は取り消せません。")
+    }
+  }
+
+  /// この提案が参照している（理解の前提となる）提案を読み込む
+  private func loadRelatedProposals() async {
+    do {
+      let edges = try await referenceRepository.fetchOutgoing(fromProposalIds: [proposal.proposalId])
+      let ids = Array(Set(edges.map(\.toProposalId))).sorted()
+      guard !ids.isEmpty else { return }
+      let fetched = try await seRepository.fetchProposals(byProposalIds: ids)
+      relatedProposals = fetched.sorted { $0.proposalId < $1.proposalId }
+    } catch {
+      // 失敗時は前提提案を出さずにクイズ表示を継続
+      print("Failed to load related proposals:", error)
     }
   }
 }
