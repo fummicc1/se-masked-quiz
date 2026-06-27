@@ -32,17 +32,6 @@
   ],
 
   /**
-   * R2 Bucket Binding
-   * https://developers.cloudflare.com/r2/
-   */
-  "r2_buckets": [
-    {
-      "binding": "QUIZ_BUCKET",
-      "bucket_name": "se-masked-quiz"
-    }
-  ],
-
-  /**
    * Rate Limiting bindings (free with Workers plan).
    * https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
    *
