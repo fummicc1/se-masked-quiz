@@ -24,11 +24,19 @@ struct ProposalListScreen: View {
   @State private var searchText: String = ""
   @State private var debouncedSearchText: String = ""
   @State private var sortOrder: ProposalSortOrder = .descending
+  @State private var navigationPath = NavigationPath()
 
   var body: some View {
     GeometryReader { proxy in
-      NavigationStack {
+      NavigationStack(path: $navigationPath) {
         proposalsList
+      }
+      // 詳細画面でクイズに回答して戻ってきたとき（path が縮む）に進捗を再読込し、
+      // 一覧の進捗率・正解率を最新化する
+      .onChange(of: navigationPath.count) { oldCount, newCount in
+        if newCount < oldCount {
+          Task { await loadQuizProgresses() }
+        }
       }
       .sheet(isPresented: $showsSetting) {
         SettingScreen()
