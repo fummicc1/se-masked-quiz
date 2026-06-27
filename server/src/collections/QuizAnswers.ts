@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-const PROPOSAL_ID_PATTERN = /^SE-\d{4}$/
+const PROPOSAL_ID_PATTERN = /^\d{4}$/
 const MAX_ANSWERS = 1000
 const MAX_OPTIONS_PER_ANSWER = 50
 const MAX_STRING_LENGTH = 2000
@@ -42,7 +42,7 @@ export const QuizAnswers: CollectionConfig = {
       index: true,
       validate: (value: unknown) => {
         if (typeof value !== 'string' || !PROPOSAL_ID_PATTERN.test(value)) {
-          return 'proposalId must match SE-NNNN (e.g. SE-0001)'
+          return 'proposalId must be four digits (e.g. 0001)'
         }
         return true
       },
