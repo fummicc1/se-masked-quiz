@@ -6,7 +6,6 @@ declare namespace Cloudflare {
 		mainModule: typeof import("./.open-next/worker");
 	}
 	interface Env {
-		QUIZ_BUCKET: R2Bucket;
 		DB: D1Database;
 		RL_API: RateLimit;
 		RL_ADMIN: RateLimit;
