@@ -23,13 +23,17 @@ struct ProposalQuizView: View {
 
   init(
     proposal: SwiftEvolution,
-    quizRepository: any QuizRepository
+    quizRepository: any QuizRepository,
+    streakRepository: any StreakRepository = StreakRepositoryImpl(),
+    analytics: any AnalyticsService = ConsoleAnalyticsService()
   ) {
     self.proposal = proposal
     _quizViewModel = StateObject(
       wrappedValue: QuizViewModel(
         proposalId: proposal.proposalId,
-        quizRepository: quizRepository
+        quizRepository: quizRepository,
+        streakRepository: streakRepository,
+        analytics: analytics
       )
     )
   }

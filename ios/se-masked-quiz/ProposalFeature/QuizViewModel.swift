@@ -27,13 +27,19 @@ final class QuizViewModel: ObservableObject {
   @Published var hasLLMQuizzes: Bool = false
 
   private let quizRepository: any QuizRepository
+  private let streakRepository: any StreakRepository
+  private let analytics: any AnalyticsService
   private let proposalId: String
 
   init(
     proposalId: String,
-    quizRepository: any QuizRepository
+    quizRepository: any QuizRepository,
+    streakRepository: any StreakRepository = StreakRepositoryImpl(),
+    analytics: any AnalyticsService = ConsoleAnalyticsService()
   ) {
     self.quizRepository = quizRepository
+    self.streakRepository = streakRepository
+    self.analytics = analytics
     self.proposalId = proposalId
   }
 
@@ -138,6 +144,7 @@ final class QuizViewModel: ObservableObject {
       }
 
       isConfigured = true
+      analytics.track(.quizStarted(proposalId: proposalId))
     } catch {
       print("Failed to fetch quiz:", error)
     }
@@ -156,6 +163,7 @@ final class QuizViewModel: ObservableObject {
       let correct = answer == currentQuiz.answer
       isCorrect[index] = correct
       updateScore()
+      recordActivityAndTrack(isCorrect: correct)
     }
   }
 
@@ -219,6 +227,20 @@ final class QuizViewModel: ObservableObject {
     let correct = answer == quiz.correctAnswer
     isLLMCorrect[quiz.id] = correct
     updateLLMQuizScore()
+    recordActivityAndTrack(isCorrect: correct)
+  }
+
+  // MARK: - Streak & Analytics
+
+  /// 回答のたびにストリークを記録し、計測イベントを送る（習慣ループの「行動→投資」）
+  private func recordActivityAndTrack(isCorrect: Bool) {
+    analytics.track(.quizAnswered(isCorrect: isCorrect))
+    Task { [streakRepository, analytics] in
+      let result = await streakRepository.recordActivity(on: Date())
+      if result.isFirstActivityToday {
+        analytics.track(.streakIncremented(days: result.record.currentStreak))
+      }
+    }
   }
 
   /// LLMクイズを閉じる

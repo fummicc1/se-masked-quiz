@@ -10,7 +10,10 @@ import SwiftUI
 struct ProposalListScreen: View {
   @Environment(\.seRepository) var repository
   @Environment(\.quizRepository) var quizRepository
+  @Environment(\.streakRepository) var streakRepository
+  @Environment(\.analytics) var analytics
   @State private var proposals: AsyncProposals = .idle
+  @State private var dailyProposal: SwiftEvolution?
   @State private var modalWebUrl: URL?
   @State private var currentPage: Int = 1
   @State private var hasNextPage: Bool = true
@@ -81,6 +84,9 @@ struct ProposalListScreen: View {
 
           // 進捗情報を読み込む
           await loadQuizProgresses()
+
+          // 今日のチャレンジを読み込む
+          await loadDailyChallenge()
         } catch {
           self.proposals = .error(error)
         }
@@ -132,6 +138,13 @@ struct ProposalListScreen: View {
   @ViewBuilder
   private var proposalsList: some View {
     List {
+      if let daily = dailyProposal {
+        Section {
+          NavigationLink(value: daily) {
+            DailyChallengeCard(proposal: daily)
+          }
+        }
+      }
       ForEach(proposals.content) { proposal in
         NavigationLink(value: proposal) {
           VStack(alignment: .leading, spacing: 8) {
@@ -175,7 +188,9 @@ struct ProposalListScreen: View {
     .navigationDestination(for: SwiftEvolution.self) { proposal in
       ProposalQuizView(
         proposal: proposal,
-        quizRepository: quizRepository
+        quizRepository: quizRepository,
+        streakRepository: streakRepository,
+        analytics: analytics
       )
     }
     .toolbar {
@@ -271,6 +286,23 @@ struct ProposalListScreen: View {
     } catch {
       print("Failed to load quiz progresses:", error)
       // エラー時も進捗なしで表示を継続
+    }
+  }
+
+  /// 今日のチャレンジ対象の提案を決定論的に選び、内容を読み込む
+  private func loadDailyChallenge() async {
+    do {
+      let counts = try await quizRepository.getAllQuizCounts()
+      let service = DailyChallengeService()
+      guard
+        let proposalId = service.todaysProposalId(from: Array(counts.keys), date: Date())
+      else {
+        return
+      }
+      dailyProposal = try await repository.fetchProposal(byProposalId: proposalId)
+    } catch {
+      print("Failed to load daily challenge:", error)
+      // 失敗時はカードを出さずに一覧のみ表示を継続
     }
   }
 }
