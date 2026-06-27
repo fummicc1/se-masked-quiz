@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-const PROPOSAL_ID_PATTERN = /^SE-\d{4}$/
+const PROPOSAL_ID_PATTERN = /^\d{4}$/
 
 export const Proposals: CollectionConfig = {
   slug: 'proposals',
@@ -22,7 +22,7 @@ export const Proposals: CollectionConfig = {
       index: true,
       validate: (value: unknown) => {
         if (typeof value !== 'string' || !PROPOSAL_ID_PATTERN.test(value)) {
-          return 'proposalId must match SE-NNNN (e.g. SE-0001)'
+          return 'proposalId must be four digits (e.g. 0001)'
         }
         return true
       },
@@ -53,7 +53,7 @@ export const Proposals: CollectionConfig = {
     {
       name: 'status',
       type: 'text',
-      maxLength: 100,
+      maxLength: 500,
     },
   ],
 }
