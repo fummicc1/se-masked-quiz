@@ -1,1 +1,6 @@
-Quiz progress is now displayed on the proposal list screen.
+New
+- Dependency graph: instantly see which proposals to read first. Every proposal now lists its prerequisites, and a new dependency graph lets you explore how Swift Evolution proposals connect.
+- Daily Challenge: a fresh proposal is picked for you each day, with streaks and reminders to help you keep a steady learning habit.
+
+Improvements & Fixes
+- Your progress and accuracy on the proposal list now update the moment you finish a quiz.
