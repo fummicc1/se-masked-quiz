@@ -11,6 +11,8 @@ import type { GetPlatformProxyOptions } from 'wrangler';
 import { Proposals } from './collections/Proposals';
 import { ProposalReferences } from './collections/ProposalReferences';
 import { QuizAnswers } from './collections/QuizAnswers';
+import { TestingProposals } from './collections/TestingProposals';
+import { TestingQuizAnswers } from './collections/TestingQuizAnswers';
 import { Users } from './collections/Users';
 
 const filename = fileURLToPath(import.meta.url);
@@ -69,7 +71,7 @@ export default buildConfig({
 		binding: cloudflare.env.DB,
 	}),
 	editor: lexicalEditor(),
-	collections: [Users, Proposals, QuizAnswers, ProposalReferences],
+	collections: [Users, Proposals, QuizAnswers, ProposalReferences, TestingProposals, TestingQuizAnswers],
 	logger: isProduction ? cloudflareLogger : undefined,
 	// iOS app is the only client; browsers must not be able to call this API.
 	cors: [],
