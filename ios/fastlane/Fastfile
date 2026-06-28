@@ -48,14 +48,17 @@ platform :ios do
     )
   end
 
-  desc "Verify metadata before upload (dry run, no upload)"
+  desc "Preview the local release notes to be uploaded (no network, no auth)"
   lane :preview_metadata do
-    deliver(
-      app_identifier: ENV["APP_IDENTIFIER"],
-      skip_binary_upload: true,
-      skip_screenshots: true,
-      force: true,
-      verify_only: true
-    )
+    %w[ja en-US].each do |locale|
+      # fastlane の cwd が ios/ か ios/fastlane/ かに依存しないよう両候補を試す
+      candidates = [
+        "fastlane/metadata/#{locale}/release_notes.txt",
+        "metadata/#{locale}/release_notes.txt",
+      ]
+      path = candidates.find { |p| File.exist?(p) }
+      UI.header("release_notes (#{locale})")
+      UI.message(path ? File.read(path) : "(missing: tried #{candidates.join(', ')})")
+    end
   end
 end
