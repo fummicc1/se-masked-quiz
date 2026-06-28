@@ -32,7 +32,7 @@ struct DailyChallengeCard: View {
           .font(.headline)
           .lineLimit(2)
 
-        Text("SE-\(proposal.proposalId)")
+        Text(proposal.displayId)
           .font(.caption)
           .foregroundStyle(.secondary)
 

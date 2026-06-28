@@ -58,18 +58,22 @@ protocol QuizRepository: Actor, Sendable {
 
 actor QuizRepositoryImpl: QuizRepository {
   private let userDefaults: UserDefaults
+  private let track: ProposalTrack
 
   // MARK: - Cache
   private var answersCache: [String: [QuizAnswer]]?
   private var answersCacheTimestamp: Date?
   private let cacheExpirationInterval: TimeInterval = 43200  // 12時間
 
-  private static let scoreKey = "proposal_scores"
-  private static let llmQuizzesKey = "llm_quizzes"
-  private static let llmQuizScoresKey = "llm_quiz_scores"
+  // SE は従来キー（"proposal_scores" 等）、ST は名前空間で分離（"testing_proposal_scores"）。
+  // bare 4桁 proposalId が SE/ST で衝突するため、ローカル進捗もトラックで分ける必要がある。
+  private var scoreKey: String { "\(track.storageNamespace)proposal_scores" }
+  private var llmQuizzesKey: String { "\(track.storageNamespace)llm_quizzes" }
+  private var llmQuizScoresKey: String { "\(track.storageNamespace)llm_quiz_scores" }
 
-  init(userDefaults: UserDefaults = .standard) {
+  init(userDefaults: UserDefaults = .standard, track: ProposalTrack = .swiftEvolution) {
     self.userDefaults = userDefaults
+    self.track = track
   }
 
   // MARK: - Mask Quiz Score Management
@@ -79,12 +83,12 @@ actor QuizRepositoryImpl: QuizRepository {
     scores[score.proposalId] = score
 
     if let encoded = try? JSONEncoder().encode(scores) {
-      userDefaults.set(encoded, forKey: Self.scoreKey)
+      userDefaults.set(encoded, forKey: scoreKey)
     }
   }
 
   func getAllScores() async -> [String: ProposalScore] {
-    guard let data = userDefaults.data(forKey: Self.scoreKey),
+    guard let data = userDefaults.data(forKey: scoreKey),
       let scores = try? JSONDecoder().decode([String: ProposalScore].self, from: data)
     else {
       return [:]
@@ -123,7 +127,7 @@ actor QuizRepositoryImpl: QuizRepository {
     scores.removeValue(forKey: proposalId)
 
     if let encoded = try? JSONEncoder().encode(scores) {
-      userDefaults.set(encoded, forKey: Self.scoreKey)
+      userDefaults.set(encoded, forKey: scoreKey)
     }
   }
 
@@ -139,7 +143,7 @@ actor QuizRepositoryImpl: QuizRepository {
     allLLMQuizzes[proposalId] = quizzes
 
     if let encoded = try? JSONEncoder().encode(allLLMQuizzes) {
-      userDefaults.set(encoded, forKey: Self.llmQuizzesKey)
+      userDefaults.set(encoded, forKey: llmQuizzesKey)
     }
   }
 
@@ -158,7 +162,7 @@ actor QuizRepositoryImpl: QuizRepository {
     allLLMQuizzes.removeValue(forKey: proposalId)
 
     if let encoded = try? JSONEncoder().encode(allLLMQuizzes) {
-      userDefaults.set(encoded, forKey: Self.llmQuizzesKey)
+      userDefaults.set(encoded, forKey: llmQuizzesKey)
     }
 
     // スコアも削除
@@ -172,7 +176,7 @@ actor QuizRepositoryImpl: QuizRepository {
     scores[score.proposalId] = score
 
     if let encoded = try? JSONEncoder().encode(scores) {
-      userDefaults.set(encoded, forKey: Self.llmQuizScoresKey)
+      userDefaults.set(encoded, forKey: llmQuizScoresKey)
     }
   }
 
@@ -186,7 +190,7 @@ actor QuizRepositoryImpl: QuizRepository {
     scores.removeValue(forKey: proposalId)
 
     if let encoded = try? JSONEncoder().encode(scores) {
-      userDefaults.set(encoded, forKey: Self.llmQuizScoresKey)
+      userDefaults.set(encoded, forKey: llmQuizScoresKey)
     }
   }
 
@@ -201,7 +205,7 @@ actor QuizRepositoryImpl: QuizRepository {
     }
 
     let baseURL = Env.serverBaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-    guard let url = URL(string: "\(baseURL)/api/quiz-answers?limit=1000") else {
+    guard let url = URL(string: "\(baseURL)/api/\(track.quizAnswersSlug)?limit=1000") else {
       throw QuizError.invalidResponse
     }
 
@@ -229,7 +233,7 @@ actor QuizRepositoryImpl: QuizRepository {
   }
 
   private func getAllLLMQuizzes() async -> [String: [LLMQuiz]] {
-    guard let data = userDefaults.data(forKey: Self.llmQuizzesKey),
+    guard let data = userDefaults.data(forKey: llmQuizzesKey),
       let quizzes = try? JSONDecoder().decode([String: [LLMQuiz]].self, from: data)
     else {
       return [:]
@@ -238,7 +242,7 @@ actor QuizRepositoryImpl: QuizRepository {
   }
 
   private func getAllLLMQuizScores() async -> [String: LLMQuizScore] {
-    guard let data = userDefaults.data(forKey: Self.llmQuizScoresKey),
+    guard let data = userDefaults.data(forKey: llmQuizScoresKey),
       let scores = try? JSONDecoder().decode([String: LLMQuizScore].self, from: data)
     else {
       return [:]
@@ -281,6 +285,21 @@ extension EnvironmentValues {
   var quizRepository: any QuizRepository {
     get { self[QuizRepositoryImpl.self] }
     set { self[QuizRepositoryImpl.self] = newValue }
+  }
+}
+
+// Swift Testing トラック用のクイズリポジトリ（testing-quiz-answers エンドポイント、
+// ローカル保存も "testing_" 名前空間）。SE 用とは別インスタンスで分離する。
+private struct TestingQuizRepositoryKey: EnvironmentKey {
+  static var defaultValue: any QuizRepository {
+    QuizRepositoryImpl(track: .swiftTesting)
+  }
+}
+
+extension EnvironmentValues {
+  var testingQuizRepository: any QuizRepository {
+    get { self[TestingQuizRepositoryKey.self] }
+    set { self[TestingQuizRepositoryKey.self] = newValue }
   }
 }
 

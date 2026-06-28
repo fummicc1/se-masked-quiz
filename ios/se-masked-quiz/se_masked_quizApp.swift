@@ -17,9 +17,18 @@ struct se_masked_quizApp: App {
 
   var body: some Scene {
     WindowGroup {
-      ProposalListScreen()
-        .environment(\.analytics, analytics)
-        .environment(\.streakRepository, streakRepository)
+      TabView {
+        ProposalListScreen(track: .swiftEvolution)
+          .tabItem {
+            Label("Swift Evolution", systemImage: "swift")
+          }
+        ProposalListScreen(track: .swiftTesting)
+          .tabItem {
+            Label("Swift Testing", systemImage: "checkmark.seal")
+          }
+      }
+      .environment(\.analytics, analytics)
+      .environment(\.streakRepository, streakRepository)
     }
     .onChange(of: scenePhase) { _, newPhase in
       guard newPhase == .active else { return }
