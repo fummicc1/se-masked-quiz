@@ -10,6 +10,7 @@ import SwiftUI
 struct ProposalListScreen: View {
   @Environment(\.seRepository) var repository
   @Environment(\.quizRepository) var quizRepository
+  @Environment(\.testingQuizRepository) var testingQuizRepository
   @Environment(\.streakRepository) var streakRepository
   @Environment(\.analytics) var analytics
   @State private var proposals: AsyncProposals = .idle
@@ -25,6 +26,18 @@ struct ProposalListScreen: View {
   @State private var debouncedSearchText: String = ""
   @State private var sortOrder: ProposalSortOrder = .descending
   @State private var navigationPath = NavigationPath()
+
+  /// このタブのトラック（Swift Evolution / Swift Testing）。
+  let track: ProposalTrack
+
+  init(track: ProposalTrack = .swiftEvolution) {
+    self.track = track
+  }
+
+  /// トラックに対応するクイズリポジトリ（SE/ST でエンドポイント・ローカル保存が分かれる）。
+  private var activeQuizRepository: any QuizRepository {
+    track == .swiftEvolution ? quizRepository : testingQuizRepository
+  }
 
   var body: some View {
     GeometryReader { proxy in
@@ -54,11 +67,12 @@ struct ProposalListScreen: View {
                 let response = try await repository.fetch(
                   page: currentPage,
                   searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText,
-                  sortOrder: sortOrder
+                  sortOrder: sortOrder,
+                  track: track
                 )
                 hasNextPage = response.hasNextPage
                 var currentProposals = proposals.content
-                currentProposals.append(contentsOf: response.docs.map { $0.toSwiftEvolution() })
+                currentProposals.append(contentsOf: response.docs.map { $0.toSwiftEvolution(track: track) })
                 proposals = .loaded(currentProposals)
                 currentPage += 1
               } catch {
@@ -85,16 +99,18 @@ struct ProposalListScreen: View {
         }
         do {
           proposals.startLoading()
-          let response = try await repository.fetch(page: currentPage, sortOrder: sortOrder)
+          let response = try await repository.fetch(page: currentPage, sortOrder: sortOrder, track: track)
           hasNextPage = response.hasNextPage
-          self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
+          self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution(track: track) })
           currentPage += 1
 
           // 進捗情報を読み込む
           await loadQuizProgresses()
 
-          // 今日のチャレンジを読み込む
-          await loadDailyChallenge()
+          // 今日のチャレンジを読み込む（Swift Evolution タブのみ）
+          if track == .swiftEvolution {
+            await loadDailyChallenge()
+          }
         } catch {
           self.proposals = .error(error)
         }
@@ -159,7 +175,7 @@ struct ProposalListScreen: View {
             HStack {
               MarkdownText(proposal.title)
                 .font(.headline)
-              Text("#\(Int(proposal.proposalId) ?? 0)")
+              Text(proposal.displayId)
                 .font(.caption)
             }
             MarkdownText(proposal.status ?? "")
@@ -191,12 +207,12 @@ struct ProposalListScreen: View {
         ContentUnavailableView.search(text: debouncedSearchText)
       }
     }
-    .navigationTitle("Swift Evolution")
+    .navigationTitle(track.title)
     .modifier(ProposalListSearchableModifier(searchText: $searchText))
     .navigationDestination(for: SwiftEvolution.self) { proposal in
       ProposalQuizView(
         proposal: proposal,
-        quizRepository: quizRepository,
+        quizRepository: proposal.track == .swiftEvolution ? quizRepository : testingQuizRepository,
         streakRepository: streakRepository,
         analytics: analytics
       )
@@ -257,10 +273,11 @@ struct ProposalListScreen: View {
         let response = try await repository.fetch(
           page: currentPage,
           searchText: searchText.isEmpty ? nil : searchText,
-          sortOrder: sortOrder
+          sortOrder: sortOrder,
+          track: track
         )
         hasNextPage = response.hasNextPage
-        proposals = .loaded(response.docs.map { $0.toSwiftEvolution() })
+        proposals = .loaded(response.docs.map { $0.toSwiftEvolution(track: track) })
         currentPage += 1
       } catch {
         proposals = .error(error)
@@ -275,10 +292,10 @@ struct ProposalListScreen: View {
 
     do {
       // 全提案のスコアを取得
-      let allScores = await quizRepository.getAllScores()
+      let allScores = await activeQuizRepository.getAllScores()
 
       // 全提案のクイズ数を取得
-      let allQuizCounts = try await quizRepository.getAllQuizCounts()
+      let allQuizCounts = try await activeQuizRepository.getAllQuizCounts()
 
       // ProposalProgressマップを生成
       var progresses: [String: ProposalProgress] = [:]
@@ -306,7 +323,7 @@ struct ProposalListScreen: View {
   /// 今日のチャレンジ対象の提案を決定論的に選び、内容を読み込む
   private func loadDailyChallenge() async {
     do {
-      let counts = try await quizRepository.getAllQuizCounts()
+      let counts = try await activeQuizRepository.getAllQuizCounts()
       let service = DailyChallengeService()
       guard
         let proposalId = service.todaysProposalId(from: Array(counts.keys), date: Date())

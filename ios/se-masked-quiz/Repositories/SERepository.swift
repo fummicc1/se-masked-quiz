@@ -48,7 +48,8 @@ struct SERepository: Sendable {
   func fetch(
     page: Int,
     searchText: String? = nil,
-    sortOrder: ProposalSortOrder = .descending
+    sortOrder: ProposalSortOrder = .descending,
+    track: ProposalTrack = .swiftEvolution
   ) async throws -> PayloadListResponse<PayloadProposal> {
     let baseURL = Env.serverBaseURL
     let apiKey = Env.serverApiKey
@@ -57,7 +58,8 @@ struct SERepository: Sendable {
       page: page,
       limit: Self.pageSize,
       searchText: searchText,
-      sortOrder: sortOrder
+      sortOrder: sortOrder,
+      track: track
     )
     var request = URLRequest(url: requestURL)
     request.httpMethod = "GET"
@@ -107,14 +109,17 @@ struct SERepository: Sendable {
   }
 
   /// 提案IDを指定して単一の提案を取得する（デイリーチャレンジ用）
-  func fetchProposal(byProposalId proposalId: String) async throws -> SwiftEvolution? {
+  func fetchProposal(
+    byProposalId proposalId: String,
+    track: ProposalTrack = .swiftEvolution
+  ) async throws -> SwiftEvolution? {
     let baseURL = Env.serverBaseURL
     let apiKey = Env.serverApiKey
     var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     while trimmed.hasSuffix("/") {
       trimmed.removeLast()
     }
-    guard var components = URLComponents(string: "\(trimmed)/api/proposals") else {
+    guard var components = URLComponents(string: "\(trimmed)/api/\(track.proposalsSlug)") else {
       throw SERepositoryError.invalidBaseURL
     }
     components.queryItems = [
@@ -136,7 +141,7 @@ struct SERepository: Sendable {
       throw SERepositoryError.httpStatus(http.statusCode)
     }
     let decoded = try JSONDecoder().decode(PayloadListResponse<PayloadProposal>.self, from: data)
-    return decoded.docs.first?.toSwiftEvolution()
+    return decoded.docs.first?.toSwiftEvolution(track: track)
   }
 
   static func proposalsURL(
@@ -144,13 +149,14 @@ struct SERepository: Sendable {
     page: Int,
     limit: Int,
     searchText: String? = nil,
-    sortOrder: ProposalSortOrder = .descending
+    sortOrder: ProposalSortOrder = .descending,
+    track: ProposalTrack = .swiftEvolution
   ) throws -> URL {
     var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
     while trimmed.hasSuffix("/") {
       trimmed.removeLast()
     }
-    guard var components = URLComponents(string: "\(trimmed)/api/proposals") else {
+    guard var components = URLComponents(string: "\(trimmed)/api/\(track.proposalsSlug)") else {
       throw SERepositoryError.invalidBaseURL
     }
     var items: [URLQueryItem] = [
@@ -279,7 +285,7 @@ struct PayloadProposal: Decodable, Sendable {
   let reviewManager: String?
   let status: String?
 
-  func toSwiftEvolution() -> SwiftEvolution {
+  func toSwiftEvolution(track: ProposalTrack = .swiftEvolution) -> SwiftEvolution {
     SwiftEvolution(
       id: String(id),
       proposalId: proposalId,
@@ -287,7 +293,8 @@ struct PayloadProposal: Decodable, Sendable {
       reviewManager: reviewManager,
       status: status,
       authors: authors,
-      content: content
+      content: content,
+      track: track
     )
   }
 }

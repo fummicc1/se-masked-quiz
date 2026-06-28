@@ -113,15 +113,18 @@ struct ProposalQuizView: View {
       .navigationBarTitleDisplayMode(.inline)
     #endif
     .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        NavigationLink(
-          value: DependencyGraphRoute(
-            rootProposalId: proposal.proposalId,
-            rootTitle: proposal.title
-          )
-        ) {
-          Image(systemName: "point.3.connected.trianglepath.dotted")
-            .accessibilityLabel("依存グラフ")
+      // 依存グラフは Swift Evolution のみ（ST は v1 では対象外）
+      if proposal.track == .swiftEvolution {
+        ToolbarItem(placement: .primaryAction) {
+          NavigationLink(
+            value: DependencyGraphRoute(
+              rootProposalId: proposal.proposalId,
+              rootTitle: proposal.title
+            )
+          ) {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+              .accessibilityLabel("依存グラフ")
+          }
         }
       }
       ToolbarItem(placement: .primaryAction) {
@@ -191,6 +194,8 @@ struct ProposalQuizView: View {
 
   /// この提案が参照している（理解の前提となる）提案を読み込む
   private func loadRelatedProposals() async {
+    // 参照（依存）は Swift Evolution のみ。ST は別トラックで bare ID が衝突するため読み込まない。
+    guard proposal.track == .swiftEvolution else { return }
     do {
       let edges = try await referenceRepository.fetchOutgoing(fromProposalIds: [proposal.proposalId])
       let ids = Array(Set(edges.map(\.toProposalId))).sorted()
