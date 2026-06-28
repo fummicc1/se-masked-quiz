@@ -45,7 +45,7 @@ Download existing metadata from App Store Connect
 [bundle exec] fastlane ios preview_metadata
 ```
 
-Preview metadata changes before upload
+Verify metadata before upload (dry run, no upload)
 
 ----
 

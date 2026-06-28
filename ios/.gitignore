@@ -33,3 +33,12 @@ yarn-debug.log*
 yarn-error.log*
 .npm
 .env
+
+# Private Keys
+*.p8
+
+# Fastlane specific entries
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
