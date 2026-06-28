@@ -1,2 +1,5 @@
 .DS_Store
 .tmp/
+.pnpm-store/
+.nvim/xcodebuild/
+tsconfig.tsbuildinfo

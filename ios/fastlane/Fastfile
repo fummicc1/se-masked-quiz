@@ -3,6 +3,18 @@
 default_platform(:ios)
 
 platform :ios do
+  # App Store Connect API キー認証（.env から読み込み）。設定済みなら全レーン共通で使われる。
+  before_all do
+    if ENV["ASC_KEY_ID"] && ENV["ASC_ISSUER_ID"] && ENV["ASC_KEY_PATH"]
+      app_store_connect_api_key(
+        key_id: ENV["ASC_KEY_ID"],
+        issuer_id: ENV["ASC_ISSUER_ID"],
+        key_filepath: ENV["ASC_KEY_PATH"],
+        in_house: false
+      )
+    end
+  end
+
   desc "Upload metadata to App Store Connect"
   lane :upload_metadata do
     deliver(
@@ -36,13 +48,14 @@ platform :ios do
     )
   end
 
-  desc "Preview metadata changes before upload"
+  desc "Verify metadata before upload (dry run, no upload)"
   lane :preview_metadata do
     deliver(
       app_identifier: ENV["APP_IDENTIFIER"],
       skip_binary_upload: true,
       skip_screenshots: true,
-      preview_only: true
+      force: true,
+      verify_only: true
     )
   end
 end
