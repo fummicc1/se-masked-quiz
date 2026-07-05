@@ -393,6 +393,10 @@ enum LLMServiceError: Error, LocalizedError {
   case mlxUnavailable
 
   var errorDescription: String? {
+    modelErrorDescription ?? downloadErrorDescription
+  }
+
+  private var modelErrorDescription: String? {
     switch self {
     case .modelNotLoaded:
       return "モデルが読み込まれていません。先にloadModel()を呼び出してください。"
@@ -404,6 +408,13 @@ enum LLMServiceError: Error, LocalizedError {
       return "クイズ生成に失敗しました: \(message)"
     case .mlxError(let error):
       return "MLXエラー: \(error.localizedDescription)"
+    default:
+      return nil
+    }
+  }
+
+  private var downloadErrorDescription: String? {
+    switch self {
     case .insufficientStorage(let required, let available):
       let requiredGB = Double(required) / 1_000_000_000
       let availableGB = Double(available) / 1_000_000_000
@@ -416,6 +427,8 @@ enum LLMServiceError: Error, LocalizedError {
       return "ファイルシステムエラー: \(error.localizedDescription)"
     case .mlxUnavailable:
       return "このデバイスではMLXが利用できません"
+    default:
+      return nil
     }
   }
 }

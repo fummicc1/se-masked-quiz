@@ -1,0 +1,18 @@
+name: iOS Code Complexity
+
+on:
+  pull_request:
+    paths:
+      - "ios/se-masked-quiz/**/*.swift"
+
+jobs:
+  complexity:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install swift-complexity
+        run: brew install fummicc1/tap/swift-complexity
+
+      - name: Check code complexity
+        run: swift-complexity ios/se-masked-quiz --recursive --threshold 10
