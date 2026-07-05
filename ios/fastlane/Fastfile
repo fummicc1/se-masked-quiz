@@ -69,6 +69,26 @@ platform :ios do
     )
   end
 
+  desc "Submit the already-uploaded build for App Store review"
+  lane :submit_for_review do
+    deliver(
+      app_identifier: ENV["APP_IDENTIFIER"],
+      app_version: "1.5.0",
+      build_number: "6",
+      skip_screenshots: true,
+      skip_binary_upload: true,
+      skip_app_version_update: false,
+      force: true,
+      run_precheck_before_submit: false,
+      submit_for_review: true,
+      automatic_release: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+
   desc "Preview the local release notes to be uploaded (no network, no auth)"
   lane :preview_metadata do
     %w[ja en-US].each do |locale|
