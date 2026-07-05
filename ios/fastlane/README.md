@@ -47,6 +47,14 @@ Download existing metadata from App Store Connect
 
 Build and upload a new build to TestFlight
 
+### ios submit_for_review
+
+```sh
+[bundle exec] fastlane ios submit_for_review
+```
+
+Submit the already-uploaded build for App Store review
+
 ### ios preview_metadata
 
 ```sh
