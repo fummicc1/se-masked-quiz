@@ -39,13 +39,21 @@ Upload metadata only (no screenshots)
 
 Download existing metadata from App Store Connect
 
+### ios release_testflight
+
+```sh
+[bundle exec] fastlane ios release_testflight
+```
+
+Build and upload a new build to TestFlight
+
 ### ios preview_metadata
 
 ```sh
 [bundle exec] fastlane ios preview_metadata
 ```
 
-Verify metadata before upload (dry run, no upload)
+Preview the local release notes to be uploaded (no network, no auth)
 
 ----
 
