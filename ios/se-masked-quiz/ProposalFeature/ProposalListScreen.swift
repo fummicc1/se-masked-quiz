@@ -47,45 +47,16 @@ struct ProposalListScreen: View {
       // 詳細画面でクイズに回答して戻ってきたとき（path が縮む）に進捗を再読込し、
       // 一覧の進捗率・正解率を最新化する
       .onChange(of: navigationPath.count) { oldCount, newCount in
-        if newCount < oldCount {
-          Task { await loadQuizProgresses() }
-        }
+        handleNavigationPathChange(oldCount: oldCount, newCount: newCount)
       }
       .sheet(isPresented: $showsSetting) {
         SettingScreen()
       }
-      .onChange(
-        of: shouldLoadNextPage,
-        { oldValue, newValue in
-          if !oldValue, newValue {
-            if proposals.isLoading || !hasNextPage {
-              return
-            }
-            proposals.startLoading()
-            Task {
-              do {
-                let response = try await repository.fetch(
-                  page: currentPage,
-                  searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText,
-                  sortOrder: sortOrder,
-                  track: track
-                )
-                hasNextPage = response.hasNextPage
-                var currentProposals = proposals.content
-                currentProposals.append(contentsOf: response.docs.map { $0.toSwiftEvolution(track: track) })
-                proposals = .loaded(currentProposals)
-                currentPage += 1
-              } catch {
-                proposals = .error(error)
-              }
-            }
-          }
-        }
-      )
+      .onChange(of: shouldLoadNextPage) { oldValue, newValue in
+        Task { await loadNextPageIfNeeded(oldValue: oldValue, newValue: newValue) }
+      }
       .task(id: searchText) {
-        try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled else { return }
-        debouncedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        await debounceSearchText()
       }
       .onChange(of: debouncedSearchText) { _, newValue in
         reloadFromFirstPage(searchText: newValue, sortOrder: sortOrder)
@@ -94,67 +65,103 @@ struct ProposalListScreen: View {
         reloadFromFirstPage(searchText: debouncedSearchText, sortOrder: newValue)
       }
       .task {
-        if !proposals.content.isEmpty || proposals.isLoading {
-          return
-        }
-        do {
-          proposals.startLoading()
-          let response = try await repository.fetch(page: currentPage, sortOrder: sortOrder, track: track)
-          hasNextPage = response.hasNextPage
-          self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution(track: track) })
-          currentPage += 1
-
-          // 進捗情報を読み込む
-          await loadQuizProgresses()
-
-          // 今日のチャレンジを読み込む（Swift Evolution タブのみ）
-          if track == .swiftEvolution {
-            await loadDailyChallenge()
-          }
-        } catch {
-          self.proposals = .error(error)
-        }
+        await loadInitialProposalsIfNeeded()
       }
-      #if os(iOS)
-        .sheet(
-          item: $modalWebUrl,
-          content: { url in
-            DefaultWebView(
-              htmlContent: .url(url),
-              onNavigate: { modalWebUrl = $0 },
-              onMaskedWordTap: { _ in
-              },
-              isCorrect: .constant([:]),
-              answers: .constant([:])
-            )
-          })
-      #else
-        .sheet(item: $modalWebUrl) { url in
-          VStack(spacing: 0) {
-            HStack {
-              Text(url.absoluteString)
-              Spacer()
-              Button("Close") {
-                modalWebUrl = nil
-              }
-            }
-            .padding(8)
-            DefaultWebView(
-              htmlContent: .url(url),
-              onNavigate: { modalWebUrl = $0 },
-              onMaskedWordTap: { _ in
-              },
-              isCorrect: .constant([:]),
-              answers: .constant([:])
-            )
-            .frame(
-              width: proxy.size.width * 0.8,
-              height: proxy.size.height * 0.8
-            )
+      .sheet(item: $modalWebUrl) { url in
+        webPreviewSheet(url: url, proxy: proxy)
+      }
+    }
+  }
+
+  // MARK: - Body Helpers
+
+  private func handleNavigationPathChange(oldCount: Int, newCount: Int) {
+    guard newCount < oldCount else { return }
+    Task { await loadQuizProgresses() }
+  }
+
+  private func debounceSearchText() async {
+    try? await Task.sleep(for: .milliseconds(300))
+    guard !Task.isCancelled else { return }
+    debouncedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func loadNextPageIfNeeded(oldValue: Bool, newValue: Bool) async {
+    guard !oldValue, newValue, !proposals.isLoading, hasNextPage else { return }
+    proposals.startLoading()
+    do {
+      let response = try await repository.fetch(
+        page: currentPage,
+        searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText,
+        sortOrder: sortOrder,
+        track: track
+      )
+      hasNextPage = response.hasNextPage
+      var currentProposals = proposals.content
+      currentProposals.append(contentsOf: response.docs.map { $0.toSwiftEvolution(track: track) })
+      proposals = .loaded(currentProposals)
+      currentPage += 1
+    } catch {
+      proposals = .error(error)
+    }
+  }
+
+  private func loadInitialProposalsIfNeeded() async {
+    guard proposals.content.isEmpty, !proposals.isLoading else { return }
+    do {
+      proposals.startLoading()
+      let response = try await repository.fetch(page: currentPage, sortOrder: sortOrder, track: track)
+      hasNextPage = response.hasNextPage
+      self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution(track: track) })
+      currentPage += 1
+
+      // 進捗情報を読み込む
+      await loadQuizProgresses()
+
+      // 今日のチャレンジを読み込む（Swift Evolution タブのみ）
+      if track == .swiftEvolution {
+        await loadDailyChallenge()
+      }
+    } catch {
+      self.proposals = .error(error)
+    }
+  }
+
+  @ViewBuilder
+  private func webPreviewSheet(url: URL, proxy: GeometryProxy) -> some View {
+    #if os(iOS)
+      DefaultWebView(
+        htmlContent: .url(url),
+        onNavigate: { modalWebUrl = $0 },
+        onMaskedWordTap: { _ in
+        },
+        isCorrect: .constant([:]),
+        answers: .constant([:])
+      )
+    #else
+      VStack(spacing: 0) {
+        HStack {
+          Text(url.absoluteString)
+          Spacer()
+          Button("Close") {
+            modalWebUrl = nil
           }
         }
-      #endif
-    }
+        .padding(8)
+        DefaultWebView(
+          htmlContent: .url(url),
+          onNavigate: { modalWebUrl = $0 },
+          onMaskedWordTap: { _ in
+          },
+          isCorrect: .constant([:]),
+          answers: .constant([:])
+        )
+        .frame(
+          width: proxy.size.width * 0.8,
+          height: proxy.size.height * 0.8
+        )
+      }
+    #endif
   }
 
   // MARK: - Subviews
