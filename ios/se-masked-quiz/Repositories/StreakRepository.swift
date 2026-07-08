@@ -13,14 +13,41 @@ import SwiftUI
 
 /// 連続学習日数（ストリーク）の状態
 struct StreakRecord: Codable, Equatable, Sendable {
+  /// 達成状況を俯瞰表示するために保持する、直近の学習日履歴（180日ローリング）
+  static let activeDaysRetentionDays = 180
+
   var currentStreak: Int
   var longestStreak: Int
   /// 最後に学習した日（その日の startOfDay）
   var lastActiveDay: Date?
   var totalActiveDays: Int
+  /// 直近 `activeDaysRetentionDays` 日分の学習日（startOfDay）。古いものから随時トリムされる。
+  var activeDays: [Date]
 
   static let empty = StreakRecord(
-    currentStreak: 0, longestStreak: 0, lastActiveDay: nil, totalActiveDays: 0)
+    currentStreak: 0, longestStreak: 0, lastActiveDay: nil, totalActiveDays: 0, activeDays: [])
+
+  init(
+    currentStreak: Int, longestStreak: Int, lastActiveDay: Date?, totalActiveDays: Int,
+    activeDays: [Date] = []
+  ) {
+    self.currentStreak = currentStreak
+    self.longestStreak = longestStreak
+    self.lastActiveDay = lastActiveDay
+    self.totalActiveDays = totalActiveDays
+    self.activeDays = activeDays
+  }
+
+  // 旧バージョンで保存された `activeDays` キーを持たない JSON を安全にデコードするため、
+  // 自動合成の Decodable ではなく明示的にキー欠落を許容する。
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    currentStreak = try container.decode(Int.self, forKey: .currentStreak)
+    longestStreak = try container.decode(Int.self, forKey: .longestStreak)
+    lastActiveDay = try container.decodeIfPresent(Date.self, forKey: .lastActiveDay)
+    totalActiveDays = try container.decode(Int.self, forKey: .totalActiveDays)
+    activeDays = try container.decodeIfPresent([Date].self, forKey: .activeDays) ?? []
+  }
 
   /// 指定日に学習済みか
   func isActive(on date: Date, calendar: Calendar = .current) -> Bool {
@@ -100,6 +127,12 @@ actor StreakRepositoryImpl: StreakRepository {
     record.lastActiveDay = today
     record.totalActiveDays += 1
     record.longestStreak = max(record.longestStreak, record.currentStreak)
+    record.activeDays.append(today)
+    if let cutoff = calendar.date(
+      byAdding: .day, value: -StreakRecord.activeDaysRetentionDays, to: today)
+    {
+      record.activeDays.removeAll { $0 < cutoff }
+    }
     saveRecord(record)
 
     return StreakUpdateResult(record: record, didIncrement: didIncrement, isFirstActivityToday: true)

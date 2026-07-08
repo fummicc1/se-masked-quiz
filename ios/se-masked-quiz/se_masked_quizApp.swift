@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct se_masked_quizApp: App {
@@ -13,22 +14,38 @@ struct se_masked_quizApp: App {
 
   private let analytics: any AnalyticsService = ConsoleAnalyticsService()
   private let streakRepository: any StreakRepository = StreakRepositoryImpl()
+  private let quizRepository: any QuizRepository = QuizRepositoryImpl()
   private let notificationService = NotificationService()
+  private let router: DeepLinkRouter
+  private let notificationDelegate: AppNotificationDelegate
+
+  init() {
+    let router = DeepLinkRouter()
+    self.router = router
+    self.notificationDelegate = AppNotificationDelegate(router: router, analytics: analytics)
+    UNUserNotificationCenter.current().delegate = notificationDelegate
+  }
 
   var body: some Scene {
     WindowGroup {
-      TabView {
+      TabView(selection: Bindable(router).selectedTrack) {
         ProposalListScreen(track: .swiftEvolution)
           .tabItem {
             Label("Swift Evolution", systemImage: "swift")
           }
+          .tag(ProposalTrack.swiftEvolution)
         ProposalListScreen(track: .swiftTesting)
           .tabItem {
             Label("Swift Testing", systemImage: "checkmark.seal")
           }
+          .tag(ProposalTrack.swiftTesting)
       }
       .environment(\.analytics, analytics)
       .environment(\.streakRepository, streakRepository)
+      .environment(router)
+      .onOpenURL { url in
+        router.handle(url: url)
+      }
     }
     .onChange(of: scenePhase) { _, newPhase in
       guard newPhase == .active else { return }
@@ -36,18 +53,28 @@ struct se_masked_quizApp: App {
     }
   }
 
-  /// 起動・前面復帰時：起動計測と、リマインダー本文の最新ストリークへの更新
+  /// 起動・前面復帰時：起動計測と、リマインダー本文の最新ストリーク・DeepLink情報への更新
   private func handleBecameActive() {
     analytics.track(.appOpen)
 
     guard ReminderPreferences.isEnabled else { return }
     Task {
       let streak = await streakRepository.getStreak()
+      let proposalId = await todaysSEProposalId()
       await notificationService.scheduleDailyReminder(
         hour: ReminderPreferences.hour,
         minute: ReminderPreferences.minute,
-        currentStreak: streak.currentStreak
+        currentStreak: streak.currentStreak,
+        track: proposalId != nil ? .swiftEvolution : nil,
+        proposalId: proposalId
       )
     }
+  }
+
+  /// 通知タップで直接デイリーチャレンジへ遷移できるよう、今日のSE提案IDを算出する。
+  /// 取得できない場合はnilを返し、呼び出し元でDeepLink情報なしのフォールバック予約にする。
+  private func todaysSEProposalId() async -> String? {
+    guard let counts = try? await quizRepository.getAllQuizCounts() else { return nil }
+    return DailyChallengeService().todaysProposalId(from: Array(counts.keys), date: Date())
   }
 }

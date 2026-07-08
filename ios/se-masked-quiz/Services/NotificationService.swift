@@ -57,7 +57,15 @@ struct NotificationService: Sendable {
 
   /// 毎日指定時刻のリマインダーを登録（既存があれば置き換え）。
   /// 本文には現在のストリーク日数を埋め込み、継続意欲（loss aversion）を刺激する。
-  func scheduleDailyReminder(hour: Int, minute: Int, currentStreak: Int) async {
+  /// `track`/`proposalId` を渡すと、通知タップで該当のデイリーチャレンジへ直接遷移できる
+  /// DeepLink情報を `userInfo` に埋め込む（取得できなければ従来どおり付与しない）。
+  func scheduleDailyReminder(
+    hour: Int,
+    minute: Int,
+    currentStreak: Int,
+    track: ProposalTrack? = nil,
+    proposalId: String? = nil
+  ) async {
     let center = UNUserNotificationCenter.current()
     center.removePendingNotificationRequests(withIdentifiers: [Self.dailyReminderIdentifier])
 
@@ -69,6 +77,12 @@ struct NotificationService: Sendable {
       content.body = "1日1問でも続ければ力になります。今日のチャレンジを始めましょう。"
     }
     content.sound = .default
+    if let track, let proposalId {
+      content.userInfo = [
+        DeepLinkRouter.UserInfoKey.track: track.rawValue,
+        DeepLinkRouter.UserInfoKey.proposalId: proposalId,
+      ]
+    }
 
     var components = DateComponents()
     components.hour = hour

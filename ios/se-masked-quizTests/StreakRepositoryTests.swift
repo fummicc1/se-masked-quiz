@@ -97,4 +97,67 @@ struct StreakRepositoryTests {
     let record = await sut.getStreak()
     #expect(record == .empty)
   }
+
+  // MARK: - activeDays
+
+  @Test("学習するとactiveDaysに日付が追加される")
+  func activeDaysAppended() async {
+    let sut = makeSUT()
+    _ = await sut.recordActivity(on: day(2026, 1, 1))
+    let result = await sut.recordActivity(on: day(2026, 1, 2))
+    #expect(result.record.activeDays.count == 2)
+    #expect(
+      result.record.activeDays.contains { utcCalendar.isDate($0, inSameDayAs: day(2026, 1, 1)) })
+    #expect(
+      result.record.activeDays.contains { utcCalendar.isDate($0, inSameDayAs: day(2026, 1, 2)) })
+  }
+
+  @Test("同日に複数回記録してもactiveDaysに重複しない")
+  func noDuplicateActiveDaysForSameDay() async {
+    let sut = makeSUT()
+    _ = await sut.recordActivity(on: day(2026, 1, 1))
+    let second = await sut.recordActivity(on: day(2026, 1, 1))
+    #expect(second.record.activeDays.count == 1)
+  }
+
+  @Test("180日を超える古い活動日はトリムされる")
+  func trimsOldActiveDays() async {
+    let suiteName = "streak-test-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defaults.removePersistentDomain(forName: suiteName)
+
+    let oldDay = day(2025, 1, 1)
+    let seedRecord = StreakRecord(
+      currentStreak: 1, longestStreak: 1, lastActiveDay: oldDay, totalActiveDays: 1,
+      activeDays: [oldDay])
+    let encoded = try! JSONEncoder().encode(seedRecord)
+    defaults.set(encoded, forKey: "streak_record")
+
+    let sut = StreakRepositoryImpl(userDefaults: defaults, calendar: utcCalendar)
+    let today = day(2026, 7, 25)
+    let result = await sut.recordActivity(on: today)
+
+    #expect(
+      !result.record.activeDays.contains { utcCalendar.isDate($0, inSameDayAs: oldDay) })
+    #expect(
+      result.record.activeDays.contains { utcCalendar.isDate($0, inSameDayAs: today) })
+  }
+
+  @Test("activeDaysキーの無い旧データも安全にデコードできる")
+  func decodesLegacyDataWithoutActiveDays() throws {
+    struct LegacyStreakRecord: Codable {
+      var currentStreak: Int
+      var longestStreak: Int
+      var lastActiveDay: Date?
+      var totalActiveDays: Int
+    }
+    let legacy = LegacyStreakRecord(
+      currentStreak: 3, longestStreak: 5, lastActiveDay: day(2026, 1, 1), totalActiveDays: 10)
+    let data = try JSONEncoder().encode(legacy)
+    let record = try JSONDecoder().decode(StreakRecord.self, from: data)
+    #expect(record.currentStreak == 3)
+    #expect(record.longestStreak == 5)
+    #expect(record.totalActiveDays == 10)
+    #expect(record.activeDays == [])
+  }
 }
