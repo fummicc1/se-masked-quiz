@@ -1,2 +1,6 @@
 New
-- Added a Swift Testing tab. Browse and quiz yourself on Swift Testing proposals (ST-xxxx) separately from Swift Evolution, with progress tracked per tab.
+- Tapping a Daily Challenge notification now opens the challenge directly.
+- Added a Streak Stats screen: current/longest streak, total active days, accuracy, and a calendar view of your recent activity.
+
+Improvements & Fixes
+- Fixed a layout issue in the Daily Challenge row.
