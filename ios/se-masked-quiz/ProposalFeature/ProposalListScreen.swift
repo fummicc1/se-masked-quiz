@@ -86,7 +86,7 @@ struct ProposalListScreen: View {
     Task { await loadQuizProgresses() }
   }
 
-  /// 通知タップ/DeepLinkで保留中のチャレンジが自分のtrackと一致すれば取得して遷移する
+  /// SE/STタブが同一のDeepLinkRouterインスタンスを共有するため、track不一致の通知/DeepLinkは無視して誤消費を防ぐ
   private func handlePendingChallenge(_ pending: DeepLinkRouter.PendingChallenge?) {
     guard let pending, pending.track == track else { return }
     Task {
@@ -194,7 +194,11 @@ struct ProposalListScreen: View {
             NavigationLink(value: daily) {
               DailyChallengeCard(proposal: daily)
             }
-            NavigationLink(value: StreakStatsRoute()) {
+            // List内でNavigationLinkを2つ並べると開示矢印(chevron)が重複し、
+            // 行の幅計算が崩れてDailyChallengeCard側が圧縮されてしまうためButtonで代替する
+            Button {
+              navigationPath.append(StreakStatsRoute())
+            } label: {
               Image(systemName: "chart.bar.xaxis")
                 .font(.title3)
                 .foregroundStyle(.secondary)

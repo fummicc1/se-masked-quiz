@@ -13,7 +13,7 @@ import SwiftUI
 
 /// 連続学習日数（ストリーク）の状態
 struct StreakRecord: Codable, Equatable, Sendable {
-  /// 達成状況を俯瞰表示するために保持する、直近の学習日履歴（180日ローリング）
+  /// 達成状況を俯瞰表示するために、直近の学習日履歴（180日ローリング）を保持する
   static let activeDaysRetentionDays = 180
 
   var currentStreak: Int

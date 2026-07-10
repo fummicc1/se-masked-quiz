@@ -18,7 +18,7 @@ final class AppNotificationDelegate: NSObject, UNUserNotificationCenterDelegate 
     self.analytics = analytics
   }
 
-  /// フォアグラウンド中に通知が届いた場合も、バックグラウンド同様にバナー・サウンドを表示する
+  /// 表示中の通知もタップして直接チャレンジを開けるよう、フォアグラウンド中もバナー表示させる
   func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification
