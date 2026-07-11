@@ -48,8 +48,8 @@ struct LLMQuizGenerationSheet: View {
         if let error = quizViewModel.quizGenerationError {
           Section {
             Text(error)
-              .foregroundColor(.red)
-              .font(.callout)
+              .foregroundStyle(SemanticColor.incorrect)
+              .font(AppFont.callout)
           }
         }
 
@@ -83,17 +83,18 @@ struct LLMQuizGenerationSheet: View {
             }
           }
           .disabled(quizViewModel.isGeneratingQuizzes)
+          .buttonStyle(.glassProminent)
         }
 
         // 説明セクション
         Section {
           VStack(alignment: .leading, spacing: 8) {
             Label("オンデバイスAIでクイズを生成", systemImage: "cpu")
-              .font(.subheadline)
-              .foregroundColor(.secondary)
+              .font(AppFont.subheadline)
+              .foregroundStyle(.secondary)
             Text("デバイス上でLLMを実行してクイズを生成します。インターネット接続は不要です。")
-              .font(.caption)
-              .foregroundColor(.secondary)
+              .font(AppFont.caption)
+              .foregroundStyle(.secondary)
           }
         }
       }

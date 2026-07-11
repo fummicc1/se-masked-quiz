@@ -209,23 +209,23 @@ struct ProposalListScreen: View {
       }
       ForEach(proposals.content) { proposal in
         NavigationLink(value: proposal) {
-          VStack(alignment: .leading, spacing: 8) {
+          VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
               MarkdownText(proposal.title)
-                .font(.headline)
+                .font(AppFont.headline)
               Text(proposal.displayId)
-                .font(.caption)
+                .font(AppFont.caption)
             }
             MarkdownText(proposal.status ?? "")
-              .font(.subheadline)
+              .font(AppFont.subheadline)
             MarkdownText(proposal.authors)
-              .font(.subheadline)
+              .font(AppFont.subheadline)
             MarkdownText(proposal.reviewManager ?? "")
-              .font(.subheadline)
+              .font(AppFont.subheadline)
 
             if let progress = quizProgresses[proposal.proposalId] {
               QuizProgressView(progress: progress)
-                .padding(.top, 4)
+                .padding(.top, AppSpacing.xs)
             }
           }
         }
