@@ -261,6 +261,68 @@ final actor QuizRepositoryMock: QuizRepository, @unchecked Sendable {
     }
 }
 
+final actor FavoriteRepositoryMock: FavoriteRepository, @unchecked Sendable {
+    init() { }
+
+
+    private let toggleState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String, ProposalTrack) async -> Bool>())
+    nonisolated var toggleCallCount: Int {
+        return toggleState.withLock(\.callCount)
+    }
+    nonisolated var toggleHandler: (@Sendable (String, ProposalTrack) async -> Bool)? {
+        get { toggleState.withLock(\.handler) }
+        set { toggleState.withLock { $0.handler = newValue } }
+    }
+    func toggle(proposalId: String, track: ProposalTrack) async -> Bool {
+        let toggleHandler = toggleState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let toggleHandler = toggleHandler {
+            return await toggleHandler(proposalId, track)
+        }
+        return false
+    }
+
+    private let isFavoriteState = MockoloMutex(MockoloHandlerState<Never, @Sendable (String, ProposalTrack) async -> Bool>())
+    nonisolated var isFavoriteCallCount: Int {
+        return isFavoriteState.withLock(\.callCount)
+    }
+    nonisolated var isFavoriteHandler: (@Sendable (String, ProposalTrack) async -> Bool)? {
+        get { isFavoriteState.withLock(\.handler) }
+        set { isFavoriteState.withLock { $0.handler = newValue } }
+    }
+    func isFavorite(proposalId: String, track: ProposalTrack) async -> Bool {
+        let isFavoriteHandler = isFavoriteState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let isFavoriteHandler = isFavoriteHandler {
+            return await isFavoriteHandler(proposalId, track)
+        }
+        return false
+    }
+
+    private let getAllFavoritesState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> [FavoriteEntry]>())
+    nonisolated var getAllFavoritesCallCount: Int {
+        return getAllFavoritesState.withLock(\.callCount)
+    }
+    nonisolated var getAllFavoritesHandler: (@Sendable () async -> [FavoriteEntry])? {
+        get { getAllFavoritesState.withLock(\.handler) }
+        set { getAllFavoritesState.withLock { $0.handler = newValue } }
+    }
+    func getAllFavorites() async -> [FavoriteEntry] {
+        let getAllFavoritesHandler = getAllFavoritesState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let getAllFavoritesHandler = getAllFavoritesHandler {
+            return await getAllFavoritesHandler()
+        }
+        return [FavoriteEntry]()
+    }
+}
+
 fileprivate func warnIfNotSendable<each T>(function: String = #function, _: repeat each T) {
     print("At \(function), the captured arguments are not Sendable, it is not concurrency-safe.")
 }
