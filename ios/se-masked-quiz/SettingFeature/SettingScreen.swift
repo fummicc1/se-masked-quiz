@@ -59,7 +59,7 @@ struct SettingScreen: View {
           } label: {
             HStack {
               Image(systemName: "cpu")
-                .foregroundColor(.blue)
+                .foregroundStyle(SemanticColor.accent)
               Text("モデル管理")
             }
           }
@@ -99,7 +99,7 @@ struct SettingScreen: View {
               Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
                 ?? ""
             )
-            .foregroundColor(.gray)
+            .foregroundStyle(.secondary)
           }
         }
       }

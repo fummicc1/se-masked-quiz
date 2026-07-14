@@ -13,7 +13,7 @@ struct LicenseScreen: View {
         Text("Swift-Evolutionのライセンスは上記リンクまたは下記を参照してください。")
         Text(evolutionLicenseText)
           .padding()
-          .font(.system(.body, design: .monospaced))
+          .font(AppFont.monospaced)
 
         Text(
           "本アプリケーションは、[Swift Testing](https://github.com/swiftlang/swift-testing)にて公開されているプロポーザルも一部含んでいます（swift-evolutionリポジトリのproposals/testingサブディレクトリ経由で取得）。"
@@ -22,7 +22,7 @@ struct LicenseScreen: View {
         Text("Swift Testingのライセンスは上記リンクまたは下記を参照してください。")
         Text(testingLicenseText)
           .padding()
-          .font(.system(.body, design: .monospaced))
+          .font(AppFont.monospaced)
       }
       .padding()
     }

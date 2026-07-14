@@ -7,53 +7,42 @@ struct QuizSelectionsView: View {
     VStack(spacing: 12) {
       if let quiz = viewModel.currentQuiz {
         ForEach(quiz.allChoices, id: \.self) { choice in
-          Button(action: {
+          QuizChoiceButton(
+            title: choice,
+            state: choiceState(for: choice, quiz: quiz)
+          ) {
             viewModel.selectAnswer(choice)
-          }) {
-            Text(choice)
-              .frame(maxWidth: .infinity)
-              .padding()
-              .background(backgroundColor(for: choice))
-              .foregroundColor(.white)
-              .cornerRadius(10)
           }
-          .disabled(viewModel.selectedAnswer[quiz.index] != nil)
         }
 
         VStack {
           VStack {
             if let isCorrect = viewModel.isCorrect[quiz.index] {
               Text(isCorrect ? "正解！" : "不正解...")
-                .font(.title)
-                .foregroundColor(isCorrect ? .green : .red)
+                .font(AppFont.title)
+                .foregroundStyle(isCorrect ? SemanticColor.correct : SemanticColor.incorrect)
             }
           }
           .frame(height: 32)
           Button("閉じる", action: viewModel.dismissQuiz)
-            .padding(4)
+            .padding(AppSpacing.xs)
         }
       }
     }
     .padding()
   }
 
-  private func backgroundColor(for choice: String) -> Color {
-    guard let currentQuiz = viewModel.currentQuiz else {
-      return .clear
+  private func choiceState(for choice: String, quiz: Quiz) -> ChoiceState {
+    guard let selectedAnswer = viewModel.selectedAnswer[quiz.index] else {
+      return .unanswered
     }
-    guard let selectedAnswer = viewModel.selectedAnswer[currentQuiz.index] else {
-      return .blue
+    if choice == quiz.answer {
+      return .correct
     }
-
-    if choice == viewModel.currentQuiz?.answer {
-      return .green
+    if choice == selectedAnswer {
+      return .incorrectSelected
     }
-
-    if choice == selectedAnswer && selectedAnswer != viewModel.currentQuiz?.answer {
-      return .red
-    }
-
-    return .gray
+    return .incorrectOther
   }
 }
 

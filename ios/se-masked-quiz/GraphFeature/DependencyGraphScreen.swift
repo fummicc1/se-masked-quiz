@@ -102,14 +102,14 @@ struct DependencyGraphScreen: View {
     if viewModel.isLoading {
       ProgressView()
         .padding(8)
-        .background(.ultraThinMaterial, in: Capsule())
+        .glassCard(cornerRadius: 999)
         .padding(.top, 8)
     } else if viewModel.nodes.count <= 1 {
       Text("この提案が参照している提案はありません")
         .font(.footnote)
         .foregroundStyle(.secondary)
         .padding(8)
-        .background(.ultraThinMaterial, in: Capsule())
+        .glassCard(cornerRadius: 999)
         .padding(.top, 8)
     }
   }
@@ -119,10 +119,10 @@ struct DependencyGraphScreen: View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 6) {
         Text("#\(Int(node.id) ?? 0)")
-          .font(.caption)
+          .font(AppFont.caption)
           .bold()
         MarkdownText(node.title)
-          .font(.caption)
+          .font(AppFont.caption)
           .lineLimit(2)
         Spacer()
       }
@@ -143,10 +143,10 @@ struct DependencyGraphScreen: View {
           ProgressView()
         }
       }
-      .font(.callout)
+      .font(AppFont.callout)
     }
     .padding()
-    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    .glassCard()
     .padding()
   }
 
@@ -182,13 +182,15 @@ private struct NodeChipView: View {
   let isRoot: Bool
   let isSelected: Bool
 
+  @ScaledMetric(relativeTo: .caption2) private var titleFontSize: CGFloat = 9
+
   var body: some View {
     VStack(spacing: 2) {
       Text("#\(Int(node.id) ?? 0)")
-        .font(.caption2)
+        .font(AppFont.caption2)
         .bold()
       Text(node.title)
-        .font(.system(size: 9))
+        .font(.system(size: titleFontSize))
         .lineLimit(1)
         .frame(maxWidth: 90)
     }

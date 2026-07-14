@@ -12,7 +12,7 @@ struct QuizProgressView: View {
           .tint(progressColor)
 
         Text("\(Int(progress.progressPercentage))%")
-          .font(.caption)
+          .font(AppFont.caption)
           .foregroundStyle(.secondary)
           .monospacedDigit()
       }
@@ -20,12 +20,12 @@ struct QuizProgressView: View {
       // 詳細情報（回答数、正解率）
       HStack(spacing: 12) {
         Text("\(progress.answeredCount)/\(progress.totalCount)問")
-          .font(.caption2)
+          .font(AppFont.caption2)
           .foregroundStyle(.secondary)
 
         if progress.answeredCount > 0 {
           Text("正解率: \(Int(progress.accuracyPercentage))%")
-            .font(.caption2)
+            .font(AppFont.caption2)
             .foregroundStyle(.secondary)
         }
       }
@@ -36,11 +36,11 @@ struct QuizProgressView: View {
   private var progressColor: Color {
     switch progress.status {
     case .notStarted:
-      return .gray
+      return SemanticColor.neutral
     case .inProgress:
-      return .blue
+      return SemanticColor.inProgress
     case .completed:
-      return .green
+      return SemanticColor.correct
     }
   }
 }
