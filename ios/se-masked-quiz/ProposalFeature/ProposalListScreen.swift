@@ -12,6 +12,7 @@ struct ProposalListScreen: View {
   @Environment(\.quizRepository) var quizRepository
   @Environment(\.testingQuizRepository) var testingQuizRepository
   @Environment(\.streakRepository) var streakRepository
+  @Environment(\.favoriteRepository) var favoriteRepository
   @Environment(\.analytics) var analytics
   @Environment(DeepLinkRouter.self) private var router
   @State private var proposals: AsyncProposals = .idle
@@ -23,6 +24,7 @@ struct ProposalListScreen: View {
   @State private var showsSetting: Bool = false
   @State private var quizProgresses: [String: ProposalProgress] = [:]
   @State private var isLoadingProgress: Bool = false
+  @State private var favoriteProposalIds: Set<String> = []
   @State private var searchText: String = ""
   @State private var debouncedSearchText: String = ""
   @State private var sortOrder: ProposalSortOrder = .descending
@@ -137,6 +139,9 @@ struct ProposalListScreen: View {
       // 進捗情報を読み込む
       await loadQuizProgresses()
 
+      // お気に入り状態を読み込む
+      await loadFavorites()
+
       // 今日のチャレンジを読み込む（Swift Evolution タブのみ）
       if track == .swiftEvolution {
         await loadDailyChallenge()
@@ -208,25 +213,32 @@ struct ProposalListScreen: View {
         }
       }
       ForEach(proposals.content) { proposal in
-        NavigationLink(value: proposal) {
-          VStack(alignment: .leading, spacing: 8) {
-            HStack {
-              MarkdownText(proposal.title)
-                .font(.headline)
-              Text(proposal.displayId)
-                .font(.caption)
-            }
-            MarkdownText(proposal.status ?? "")
-              .font(.subheadline)
-            MarkdownText(proposal.authors)
-              .font(.subheadline)
-            MarkdownText(proposal.reviewManager ?? "")
-              .font(.subheadline)
+        HStack {
+          NavigationLink(value: proposal) {
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+              HStack {
+                MarkdownText(proposal.title)
+                  .font(AppFont.headline)
+                Text(proposal.displayId)
+                  .font(AppFont.caption)
+              }
+              MarkdownText(proposal.status ?? "")
+                .font(AppFont.subheadline)
+              MarkdownText(proposal.authors)
+                .font(AppFont.subheadline)
+              MarkdownText(proposal.reviewManager ?? "")
+                .font(AppFont.subheadline)
 
-            if let progress = quizProgresses[proposal.proposalId] {
-              QuizProgressView(progress: progress)
-                .padding(.top, 4)
+              if let progress = quizProgresses[proposal.proposalId] {
+                QuizProgressView(progress: progress)
+                  .padding(.top, AppSpacing.xs)
+              }
             }
+          }
+          // List内でNavigationLinkを2つ並べると開示矢印が重複しレイアウトが崩れるため、
+          // お気に入りボタンはButtonで実装する
+          FavoriteButton(isFavorite: favoriteProposalIds.contains(proposal.proposalId)) {
+            toggleFavorite(proposal)
           }
         }
         .onAppear {
@@ -264,25 +276,40 @@ struct ProposalListScreen: View {
     .navigationDestination(for: StreakStatsRoute.self) { _ in
       StreakStatsScreen()
     }
+    .navigationDestination(for: FavoritesRoute.self) { _ in
+      FavoritesScreen()
+    }
     .toolbar {
       #if os(iOS)
-        ToolbarItem(placement: .topBarLeading) {
+        ToolbarItemGroup(placement: .topBarLeading) {
           Button {
             showsSetting = true
           } label: {
             Image(systemName: "gearshape")
           }
+          Button {
+            navigationPath.append(FavoritesRoute())
+          } label: {
+            Image(systemName: "bookmark")
+          }
+          .accessibilityLabel("お気に入り")
         }
         ToolbarItem(placement: .topBarTrailing) {
           sortMenu
         }
       #elseif os(macOS)
-        ToolbarItem(placement: .navigation) {
+        ToolbarItemGroup(placement: .navigation) {
           Button {
             showsSetting = true
           } label: {
             Image(systemName: "gearshape")
           }
+          Button {
+            navigationPath.append(FavoritesRoute())
+          } label: {
+            Image(systemName: "bookmark")
+          }
+          .accessibilityLabel("お気に入り")
         }
         ToolbarItem(placement: .primaryAction) {
           sortMenu
@@ -358,6 +385,27 @@ struct ProposalListScreen: View {
     } catch {
       print("Failed to load quiz progresses:", error)
       // エラー時も進捗なしで表示を継続
+    }
+  }
+
+  /// お気に入り状態を読み込む（このタブのtrackに閉じたproposalIdの集合として保持）
+  private func loadFavorites() async {
+    let allFavorites = await favoriteRepository.getAllFavorites()
+    favoriteProposalIds = Set(
+      allFavorites.filter { $0.track == track }.map(\.proposalId))
+  }
+
+  /// お気に入り状態をトグルする。ローカルSetを楽観的に更新してからリポジトリに反映する
+  private func toggleFavorite(_ proposal: SwiftEvolution) {
+    let proposalId = proposal.proposalId
+    let willBeFavorite = !favoriteProposalIds.contains(proposalId)
+    if willBeFavorite {
+      favoriteProposalIds.insert(proposalId)
+    } else {
+      favoriteProposalIds.remove(proposalId)
+    }
+    Task {
+      _ = await favoriteRepository.toggle(proposalId: proposalId, track: track)
     }
   }
 

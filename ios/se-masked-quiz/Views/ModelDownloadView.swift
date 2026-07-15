@@ -74,10 +74,10 @@ struct ModelDownloadView: View {
         Section {
           HStack {
             Image(systemName: "exclamationmark.circle.fill")
-              .foregroundColor(.red)
+              .foregroundStyle(SemanticColor.incorrect)
             Text(errorMessage)
-              .font(.caption)
-              .foregroundColor(.red)
+              .font(AppFont.caption)
+              .foregroundStyle(SemanticColor.incorrect)
           }
         }
       }
@@ -164,8 +164,8 @@ struct ModelDownloadView: View {
             .buttonStyle(.borderless)
           } else {
             Text("使用中")
-              .font(.caption)
-              .foregroundColor(.green)
+              .font(AppFont.caption)
+              .foregroundStyle(SemanticColor.correct)
           }
 
           Spacer()

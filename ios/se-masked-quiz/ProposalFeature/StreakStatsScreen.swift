@@ -45,14 +45,15 @@ struct StreakStatsScreen: View {
 
   private var statsGrid: some View {
     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-      statTile(
-        title: "現在のストリーク", value: "\(streak.currentStreak)日", icon: "flame.fill", color: .orange)
-      statTile(
+      StatTile(
+        title: "現在のストリーク", value: "\(streak.currentStreak)日", icon: "flame.fill",
+        color: AppColor.brand)
+      StatTile(
         title: "最長ストリーク", value: "\(streak.longestStreak)日", icon: "trophy.fill", color: .yellow)
-      statTile(
+      StatTile(
         title: "総学習日数", value: "\(streak.totalActiveDays)日", icon: "calendar", color: .blue)
-      statTile(
-        title: "正答率", value: accuracyText, icon: "checkmark.seal.fill", color: .green)
+      StatTile(
+        title: "正答率", value: accuracyText, icon: "checkmark.seal.fill", color: SemanticColor.correct)
     }
     .listRowInsets(EdgeInsets())
     .listRowBackground(Color.clear)
@@ -61,20 +62,6 @@ struct StreakStatsScreen: View {
   private var accuracyText: String {
     guard let percentage = accuracy?.accuracyPercentage else { return "―" }
     return "\(Int(percentage))%"
-  }
-
-  private func statTile(title: String, value: String, icon: String, color: Color) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Label(title, systemImage: icon)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      Text(value)
-        .font(.title2.weight(.bold))
-        .monospacedDigit()
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding()
-    .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
   }
 
   // MARK: - Week Dots
@@ -88,15 +75,15 @@ struct StreakStatsScreen: View {
       ForEach(last7Days, id: \.self) { day in
         VStack(spacing: 4) {
           Circle()
-            .fill(isActive(on: day) ? Color.green : Color.gray.opacity(0.2))
+            .fill(isActive(on: day) ? SemanticColor.correct : Color.secondary.opacity(0.2))
             .frame(width: 28, height: 28)
             .overlay {
               if calendar.isDateInToday(day) {
-                Circle().strokeBorder(Color.orange, lineWidth: 2)
+                Circle().strokeBorder(AppColor.brand, lineWidth: 2)
               }
             }
           Text(weekdaySymbol(for: day))
-            .font(.caption2)
+            .font(AppFont.caption2)
             .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
@@ -121,7 +108,7 @@ struct StreakStatsScreen: View {
       ) {
         ForEach(last180Days, id: \.self) { day in
           RoundedRectangle(cornerRadius: 2)
-            .fill(isActive(on: day) ? Color.green : Color.gray.opacity(0.15))
+            .fill(isActive(on: day) ? SemanticColor.correct : Color.secondary.opacity(0.15))
             .frame(width: 12, height: 12)
         }
       }

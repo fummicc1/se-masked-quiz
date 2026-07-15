@@ -22,17 +22,16 @@ struct LLMQuizView: View {
               "\(score.correctCount)/\(score.totalCount) 正解",
               systemImage: "checkmark.circle.fill"
             )
-            .font(.headline)
-            .foregroundColor(score.correctCount == score.totalCount ? .green : .primary)
+            .font(AppFont.headline)
+            .foregroundStyle(
+              score.correctCount == score.totalCount ? SemanticColor.correct : Color.primary)
             Spacer()
             Text("\(Int(score.percentage))%")
-              .font(.title2)
-              .fontWeight(.bold)
-              .foregroundColor(score.percentage >= 80 ? .green : score.percentage >= 50 ? .orange : .red)
+              .font(AppFont.title)
+              .foregroundStyle(scoreColor(for: score.percentage))
           }
           .padding()
-          .background(.regularMaterial)
-          .cornerRadius(12)
+          .glassCard()
           .padding(.horizontal)
         }
 
@@ -62,6 +61,12 @@ struct LLMQuizView: View {
     }
   }
 
+  private func scoreColor(for percentage: Double) -> Color {
+    if percentage >= 80 { return SemanticColor.correct }
+    if percentage >= 50 { return SemanticColor.warning }
+    return SemanticColor.incorrect
+  }
+
   @ViewBuilder
   private func quizCard(quiz: LLMQuiz, index: Int) -> some View {
     let isAnswered = viewModel.isLLMCorrect[quiz.id] != nil
@@ -69,46 +74,21 @@ struct LLMQuizView: View {
     VStack(alignment: .leading, spacing: 12) {
       // 質問ヘッダー
       HStack(alignment: .top) {
-        Text("Q\(index + 1)")
-          .font(.caption)
-          .fontWeight(.bold)
-          .foregroundColor(.white)
-          .padding(.horizontal, 8)
-          .padding(.vertical, 4)
-          .background(isAnswered ? (viewModel.isLLMCorrect[quiz.id] == true ? Color.green : Color.red) : Color.accentColor)
-          .cornerRadius(6)
-
+        AppBadge(text: "Q\(index + 1)", style: .solid(questionBadgeColor(quiz: quiz, isAnswered: isAnswered)))
         Text(quiz.question)
-          .font(.body)
+          .font(AppFont.body)
           .fixedSize(horizontal: false, vertical: true)
       }
 
       // 選択肢
       ForEach(quiz.allChoices, id: \.self) { choice in
-        Button {
+        QuizChoiceButton(
+          title: choice,
+          state: choiceState(for: choice, quiz: quiz, isAnswered: isAnswered)
+        ) {
           viewModel.showLLMQuizSelections(index: index)
           viewModel.selectLLMAnswer(choice)
-        } label: {
-          HStack {
-            Text(choice)
-              .multilineTextAlignment(.leading)
-              .frame(maxWidth: .infinity, alignment: .leading)
-            if isAnswered {
-              if choice == quiz.correctAnswer {
-                Image(systemName: "checkmark.circle.fill")
-                  .foregroundColor(.green)
-              } else if choice == viewModel.selectedLLMAnswer[quiz.id] && choice != quiz.correctAnswer {
-                Image(systemName: "xmark.circle.fill")
-                  .foregroundColor(.red)
-              }
-            }
-          }
-          .padding()
-          .background(choiceBackgroundColor(for: choice, quiz: quiz))
-          .foregroundColor(isAnswered ? .primary : .white)
-          .cornerRadius(10)
         }
-        .disabled(isAnswered)
       }
 
       // 回答後: 解説
@@ -116,55 +96,47 @@ struct LLMQuizView: View {
         VStack(alignment: .leading, spacing: 8) {
           Divider()
           Label("解説", systemImage: "lightbulb.fill")
-            .font(.subheadline)
-            .fontWeight(.semibold)
-            .foregroundColor(.orange)
+            .font(AppFont.subheadline.weight(.semibold))
+            .foregroundStyle(SemanticColor.warning)
           Text(quiz.explanation)
-            .font(.callout)
-            .foregroundColor(.secondary)
+            .font(AppFont.callout)
+            .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
           HStack {
             Label(quiz.conceptTested, systemImage: "tag.fill")
-              .font(.caption)
-              .foregroundColor(.secondary)
+              .font(AppFont.caption)
+              .foregroundStyle(.secondary)
             Spacer()
-            Text(quiz.difficulty.rawValue)
-              .font(.caption)
-              .padding(.horizontal, 8)
-              .padding(.vertical, 2)
-              .background(difficultyColor(quiz.difficulty).opacity(0.2))
-              .foregroundColor(difficultyColor(quiz.difficulty))
-              .cornerRadius(4)
+            AppBadge(text: quiz.difficulty.rawValue, style: .subtle(difficultyColor(quiz.difficulty)))
           }
         }
       }
     }
     .padding()
-    .background(Color(.secondarySystemBackground))
-    .cornerRadius(16)
+    .glassCard(cornerRadius: AppRadius.extraLarge)
   }
 
   private func difficultyColor(_ difficulty: QuizDifficulty) -> Color {
     switch difficulty {
-    case .beginner: return .green
-    case .intermediate: return .orange
-    case .advanced: return .red
+    case .beginner: return SemanticColor.correct
+    case .intermediate: return SemanticColor.warning
+    case .advanced: return SemanticColor.incorrect
     }
   }
 
-  private func choiceBackgroundColor(for choice: String, quiz: LLMQuiz) -> Color {
-    guard let selectedAnswer = viewModel.selectedLLMAnswer[quiz.id] else {
-      return .blue
-    }
+  private func questionBadgeColor(quiz: LLMQuiz, isAnswered: Bool) -> Color {
+    guard isAnswered else { return .accentColor }
+    return viewModel.isLLMCorrect[quiz.id] == true ? SemanticColor.correct : SemanticColor.incorrect
+  }
 
+  private func choiceState(for choice: String, quiz: LLMQuiz, isAnswered: Bool) -> ChoiceState {
+    guard isAnswered else { return .unanswered }
     if choice == quiz.correctAnswer {
-      return .green.opacity(0.2)
+      return .correct
     }
-
-    if choice == selectedAnswer && selectedAnswer != quiz.correctAnswer {
-      return .red.opacity(0.2)
+    if choice == viewModel.selectedLLMAnswer[quiz.id] {
+      return .incorrectSelected
     }
-
-    return Color(.tertiarySystemBackground)
+    return .incorrectOther
   }
 }

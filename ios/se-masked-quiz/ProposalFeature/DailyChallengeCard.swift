@@ -25,24 +25,24 @@ struct DailyChallengeCard: View {
 
       VStack(alignment: .leading, spacing: 4) {
         Text("今日のチャレンジ")
-          .font(.caption.weight(.semibold))
+          .font(AppFont.caption.weight(.semibold))
           .foregroundStyle(.secondary)
 
         MarkdownText(proposal.title)
-          .font(.headline)
+          .font(AppFont.headline)
           .lineLimit(2)
 
         Text(proposal.displayId)
-          .font(.caption)
+          .font(AppFont.caption)
           .foregroundStyle(.secondary)
 
         if isDoneToday {
           Label("今日は達成済み", systemImage: "checkmark.circle.fill")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.green)
+            .font(AppFont.caption.weight(.semibold))
+            .foregroundStyle(SemanticColor.correct)
         } else {
           Label("タップして挑戦", systemImage: "play.circle.fill")
-            .font(.caption.weight(.semibold))
+            .font(AppFont.caption.weight(.semibold))
             .foregroundStyle(.tint)
         }
       }
@@ -62,12 +62,14 @@ struct DailyChallengeCard: View {
     VStack(spacing: 2) {
       Image(systemName: "flame.fill")
         .font(.title2)
-        .foregroundStyle(streak.currentStreak > 0 ? .orange : .secondary)
+        .foregroundStyle(
+          streak.currentStreak > 0
+            ? AnyShapeStyle(SemanticColor.streak) : AnyShapeStyle(.secondary))
       Text("\(streak.currentStreak)")
-        .font(.title3.weight(.bold))
+        .font(AppFont.title)
         .monospacedDigit()
       Text("日連続")
-        .font(.caption2)
+        .font(AppFont.caption2)
         .foregroundStyle(.secondary)
     }
     .frame(width: 56)

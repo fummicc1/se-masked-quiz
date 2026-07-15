@@ -48,14 +48,14 @@ struct ProposalQuizView: View {
           Text("現在のスコア: \(Int(currentScore.percentage))%")
             .font(.headline)
           Text("(\(currentScore.correctCount)/\(currentScore.totalCount)問正解)")
-            .font(.subheadline)
-            .foregroundColor(.secondary)
+            .font(AppFont.subheadline)
+            .foregroundStyle(.secondary)
           Spacer()
           Button(action: {
             quizViewModel.isShowingResetAlert = true
           }) {
             Image(systemName: "arrow.counterclockwise")
-              .foregroundColor(.red)
+              .foregroundStyle(SemanticColor.incorrect)
           }
         }
         .padding()
@@ -71,17 +71,15 @@ struct ProposalQuizView: View {
             HStack(spacing: 8) {
               ForEach(relatedProposals) { related in
                 NavigationLink(value: related) {
-                  HStack(spacing: 4) {
-                    Text("#\(Int(related.proposalId) ?? 0)")
-                      .font(.caption2)
-                      .bold()
-                    MarkdownText(related.title)
-                      .font(.caption2)
-                      .lineLimit(1)
+                  AppBadge(style: .subtle(.secondary)) {
+                    HStack(spacing: 4) {
+                      Text("#\(Int(related.proposalId) ?? 0)")
+                        .bold()
+                      MarkdownText(related.title)
+                        .lineLimit(1)
+                    }
+                    .font(AppFont.caption2)
                   }
-                  .padding(.horizontal, 10)
-                  .padding(.vertical, 6)
-                  .background(Capsule().fill(Color.secondary.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
               }
