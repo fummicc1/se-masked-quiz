@@ -53,7 +53,7 @@ platform :ios do
     build_app(
       project: "se-masked-quiz.xcodeproj",
       scheme: "se-masked-quiz",
-      destination: "generic/platform=iOS",
+      sdk: "iphoneos",
       export_method: "app-store",
       export_options: {
         method: "app-store",
