@@ -17,6 +17,7 @@ DerivedData/
 !default.perspectivev3
 *.hmap
 *.ipa
+*.app
 *.dSYM.zip
 *.dSYM
 
