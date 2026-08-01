@@ -25,7 +25,7 @@ final class DeepLinkRouter {
   }
 
   /// DeepLink/通知に応じて切り替えるタブ
-  var selectedTrack: ProposalTrack = .swiftEvolution
+  var selectedTab: AppTab = .track(.swiftEvolution)
   /// 各 `ProposalListScreen` が自分の track と一致した時に消費する保留中のチャレンジ
   var pendingChallenge: PendingChallenge?
 
@@ -50,7 +50,7 @@ final class DeepLinkRouter {
   }
 
   private func applyChallenge(track: ProposalTrack, proposalId: String) {
-    selectedTrack = track
+    selectedTab = .track(track)
     pendingChallenge = PendingChallenge(track: track, proposalId: Self.normalize(proposalId))
   }
 

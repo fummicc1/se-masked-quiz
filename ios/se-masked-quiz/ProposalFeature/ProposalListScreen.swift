@@ -195,45 +195,18 @@ struct ProposalListScreen: View {
     List {
       if let daily = dailyProposal {
         Section {
-          HStack {
-            NavigationLink(value: daily) {
-              DailyChallengeCard(proposal: daily)
-            }
-            // List内でNavigationLinkを2つ並べると開示矢印(chevron)が重複し、
-            // 行の幅計算が崩れてDailyChallengeCard側が圧縮されてしまうためButtonで代替する
-            Button {
-              navigationPath.append(StreakStatsRoute())
-            } label: {
-              Image(systemName: "chart.bar.xaxis")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.borderless)
+          NavigationLink(value: daily) {
+            DailyChallengeCard(proposal: daily)
           }
         }
       }
       ForEach(proposals.content) { proposal in
         HStack {
           NavigationLink(value: proposal) {
-            VStack(alignment: .leading, spacing: AppSpacing.sm) {
-              HStack {
-                MarkdownText(proposal.title)
-                  .font(AppFont.headline)
-                Text(proposal.displayId)
-                  .font(AppFont.caption)
-              }
-              MarkdownText(proposal.status ?? "")
-                .font(AppFont.subheadline)
-              MarkdownText(proposal.authors)
-                .font(AppFont.subheadline)
-              MarkdownText(proposal.reviewManager ?? "")
-                .font(AppFont.subheadline)
-
-              if let progress = quizProgresses[proposal.proposalId] {
-                QuizProgressView(progress: progress)
-                  .padding(.top, AppSpacing.xs)
-              }
-            }
+            ProposalRowView(
+              proposal: proposal,
+              progress: quizProgresses[proposal.proposalId]
+            )
           }
           // List内でNavigationLinkを2つ並べると開示矢印が重複しレイアウトが崩れるため、
           // お気に入りボタンはButtonで実装する
@@ -241,6 +214,11 @@ struct ProposalListScreen: View {
             toggleFavorite(proposal)
           }
         }
+        .listRowInsets(
+          EdgeInsets(
+            top: AppSpacing.sm, leading: AppSpacing.lg,
+            bottom: AppSpacing.sm, trailing: AppSpacing.md)
+        )
         .onAppear {
           guard let proposalIndex = proposals.content.firstIndex(of: proposal) else {
             return
@@ -272,9 +250,6 @@ struct ProposalListScreen: View {
         rootProposalId: route.rootProposalId,
         rootTitle: route.rootTitle
       )
-    }
-    .navigationDestination(for: StreakStatsRoute.self) { _ in
-      StreakStatsScreen()
     }
     .navigationDestination(for: FavoritesRoute.self) { _ in
       FavoritesScreen()

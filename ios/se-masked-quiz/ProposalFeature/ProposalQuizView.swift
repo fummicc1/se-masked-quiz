@@ -56,30 +56,25 @@ struct ProposalQuizView: View {
           }) {
             Image(systemName: "arrow.counterclockwise")
               .foregroundStyle(SemanticColor.incorrect)
+              .frame(minWidth: 44, minHeight: 44)
+              .contentShape(Rectangle())
           }
+          .accessibilityLabel("クイズをリセット")
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, AppSpacing.sm)
       }
 
       if !relatedProposals.isEmpty {
-        VStack(alignment: .leading, spacing: 4) {
-          Text("先に読むと理解しやすい提案")
-            .font(.caption)
-            .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+          Label("先に読むと理解しやすい提案", systemImage: "book")
+            .font(AppFont.subheadline.weight(.semibold))
             .padding(.horizontal)
           ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.sm) {
               ForEach(relatedProposals) { related in
                 NavigationLink(value: related) {
-                  AppBadge(style: .subtle(.secondary)) {
-                    HStack(spacing: 4) {
-                      Text("#\(Int(related.proposalId) ?? 0)")
-                        .bold()
-                      MarkdownText(related.title)
-                        .lineLimit(1)
-                    }
-                    .font(AppFont.caption2)
-                  }
+                  RelatedProposalCard(proposal: related)
                 }
                 .buttonStyle(.plain)
               }
@@ -87,7 +82,7 @@ struct ProposalQuizView: View {
             .padding(.horizontal)
           }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, AppSpacing.sm)
       }
 
       DefaultWebView(

@@ -21,16 +21,7 @@ struct FavoritesScreen: View {
     List {
       ForEach(resolvedFavorites) { resolved in
         NavigationLink(value: resolved.proposal) {
-          VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            HStack {
-              MarkdownText(resolved.proposal.title)
-                .font(AppFont.headline)
-              Text(resolved.proposal.displayId)
-                .font(AppFont.caption)
-            }
-            MarkdownText(resolved.proposal.authors)
-              .font(AppFont.subheadline)
-          }
+          ProposalRowView(proposal: resolved.proposal)
         }
       }
     }

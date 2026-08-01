@@ -8,9 +8,6 @@
 
 import SwiftUI
 
-/// ストリーク統計画面への遷移値。NavigationStack の value-based 遷移で使う。
-struct StreakStatsRoute: Hashable {}
-
 struct StreakStatsScreen: View {
   @Environment(\.streakRepository) private var streakRepository
   @Environment(\.quizRepository) private var quizRepository

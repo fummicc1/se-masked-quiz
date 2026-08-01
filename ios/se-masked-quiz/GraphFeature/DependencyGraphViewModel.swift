@@ -30,7 +30,7 @@ final class DependencyGraphViewModel: ObservableObject {
   init(
     maxHops: Int = 1,
     maxNodes: Int = 40,
-    ringSpacing: CGFloat = 140,
+    ringSpacing: CGFloat = 160,
     outgoingFetch: @escaping OutgoingFetch = { ids in
       let refs = try await ProposalReferenceRepository().fetchOutgoing(fromProposalIds: ids)
       return refs.map { GraphEdge(from: $0.fromProposalId, to: $0.toProposalId) }
