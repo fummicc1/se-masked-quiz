@@ -26,8 +26,18 @@ struct GraphLayout {
 }
 
 /// root を中心に置き、hop k のノードを半径 k·ringSpacing の同心円上へ等間隔配置する決定論レイアウト。
+///
+/// ノード数がリング周長に対して多い場合はノードチップ同士が重なって読めなくなるため、
+/// 弧長が `minArcSpacing` を下回らないよう半径を広げ、さらに偶奇 index で内外リングへ
+/// 振り分けて（スタッガー）角密度を実質半分にする。混雑していないリングは従来配置のまま。
 enum RadialLayout {
-  static func compute(nodes: [GraphNode], center: CGPoint, ringSpacing: CGFloat) -> GraphLayout {
+  static func compute(
+    nodes: [GraphNode],
+    center: CGPoint,
+    ringSpacing: CGFloat,
+    minArcSpacing: CGFloat = 100,
+    staggerOffset: CGFloat = 60
+  ) -> GraphLayout {
     var positions: [String: CGPoint] = [:]
     let byHop = Dictionary(grouping: nodes, by: \.hop)
     for (hop, group) in byHop {
@@ -37,14 +47,21 @@ enum RadialLayout {
         }
         continue
       }
-      let radius = CGFloat(hop) * ringSpacing
+      let baseRadius = CGFloat(hop) * ringSpacing
       let sorted = group.sorted { $0.id < $1.id }
       let count = max(sorted.count, 1)
+      let requiredRadius = CGFloat(count) * minArcSpacing / (2 * .pi)
+      let isCrowded = requiredRadius > baseRadius
+      let radius = max(baseRadius, requiredRadius)
       for (index, node) in sorted.enumerated() {
         let theta = (2 * CGFloat.pi / CGFloat(count)) * CGFloat(index) - CGFloat.pi / 2
+        let staggeredRadius =
+          isCrowded
+          ? radius + (index.isMultiple(of: 2) ? -staggerOffset / 2 : staggerOffset / 2)
+          : radius
         positions[node.id] = CGPoint(
-          x: center.x + radius * cos(theta),
-          y: center.y + radius * sin(theta)
+          x: center.x + staggeredRadius * cos(theta),
+          y: center.y + staggeredRadius * sin(theta)
         )
       }
     }

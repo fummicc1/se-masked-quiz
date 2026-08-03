@@ -14,7 +14,7 @@ struct DeepLinkRouterTests {
     let sut = DeepLinkRouter()
     let url = URL(string: "semaskedquiz://challenge?track=swiftEvolution&proposalId=SE-0401")!
     sut.handle(url: url)
-    #expect(sut.selectedTrack == .swiftEvolution)
+    #expect(sut.selectedTab == .track(.swiftEvolution))
     #expect(
       sut.pendingChallenge == DeepLinkRouter.PendingChallenge(
         track: .swiftEvolution, proposalId: "0401"))
@@ -25,7 +25,7 @@ struct DeepLinkRouterTests {
     let sut = DeepLinkRouter()
     let url = URL(string: "semaskedquiz://challenge?track=swiftTesting&proposalId=ST-0012")!
     sut.handle(url: url)
-    #expect(sut.selectedTrack == .swiftTesting)
+    #expect(sut.selectedTab == .track(.swiftTesting))
     #expect(
       sut.pendingChallenge == DeepLinkRouter.PendingChallenge(
         track: .swiftTesting, proposalId: "0012"))
@@ -80,7 +80,7 @@ struct DeepLinkRouterTests {
       DeepLinkRouter.UserInfoKey.track: "swiftEvolution",
       DeepLinkRouter.UserInfoKey.proposalId: "SE-0401",
     ])
-    #expect(sut.selectedTrack == .swiftEvolution)
+    #expect(sut.selectedTab == .track(.swiftEvolution))
     #expect(
       sut.pendingChallenge == DeepLinkRouter.PendingChallenge(
         track: .swiftEvolution, proposalId: "0401"))

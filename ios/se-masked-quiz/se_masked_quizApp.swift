@@ -28,17 +28,24 @@ struct se_masked_quizApp: App {
 
   var body: some Scene {
     WindowGroup {
-      TabView(selection: Bindable(router).selectedTrack) {
+      TabView(selection: Bindable(router).selectedTab) {
         ProposalListScreen(track: .swiftEvolution)
           .tabItem {
             Label("Swift Evolution", systemImage: "swift")
           }
-          .tag(ProposalTrack.swiftEvolution)
+          .tag(AppTab.track(.swiftEvolution))
         ProposalListScreen(track: .swiftTesting)
           .tabItem {
             Label("Swift Testing", systemImage: "checkmark.seal")
           }
-          .tag(ProposalTrack.swiftTesting)
+          .tag(AppTab.track(.swiftTesting))
+        NavigationStack {
+          StreakStatsScreen()
+        }
+        .tabItem {
+          Label("学習記録", systemImage: "chart.bar.fill")
+        }
+        .tag(AppTab.stats)
       }
       .environment(\.analytics, analytics)
       .environment(\.streakRepository, streakRepository)

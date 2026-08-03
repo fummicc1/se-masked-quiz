@@ -26,7 +26,7 @@ struct DependencyGraphScreen: View {
     GeometryReader { proxy in
       let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
       ZStack {
-        edgeCanvas(center: center)
+        edgeCanvas(center: center, selectedId: selectedNode?.id)
         nodeViews(center: center)
       }
       .scaleEffect(scale)
@@ -49,6 +49,7 @@ struct DependencyGraphScreen: View {
         MagnificationGesture().onChanged { scale = min(max(0.5, $0), 2.5) }
       )
       .overlay(alignment: .top) { topBanner }
+      .overlay(alignment: .topTrailing) { legendAndReset }
       .overlay(alignment: .bottom) {
         if let node = selectedNode {
           selectionBar(node)
@@ -69,18 +70,64 @@ struct DependencyGraphScreen: View {
 
   // MARK: - Subviews
 
-  private func edgeCanvas(center: CGPoint) -> some View {
+  /// エッジを矢印付きで描画する。選択ノードに接続するエッジは後から accent 色で上書きして強調する。
+  private func edgeCanvas(center: CGPoint, selectedId: String?) -> some View {
     Canvas { context, _ in
-      for edge in viewModel.edges {
-        guard let from = viewModel.layout.positions[edge.from],
-          let to = viewModel.layout.positions[edge.to]
-        else { continue }
-        var path = Path()
-        path.move(to: screenPoint(from, center: center))
-        path.addLine(to: screenPoint(to, center: center))
-        context.stroke(path, with: .color(.secondary.opacity(0.4)), lineWidth: 1)
+      let highlighted = viewModel.edges.filter {
+        $0.from == selectedId || $0.to == selectedId
+      }
+      let normal = viewModel.edges.filter {
+        $0.from != selectedId && $0.to != selectedId
+      }
+      for edge in normal {
+        drawEdge(edge, in: &context, center: center, color: .secondary.opacity(0.35), lineWidth: 1)
+      }
+      for edge in highlighted {
+        drawEdge(edge, in: &context, center: center, color: .accentColor, lineWidth: 2)
       }
     }
+  }
+
+  /// from→to の線分と、toノード手前に「参照先（先に読む提案）」方向を示す三角形の矢印を描く。
+  private func drawEdge(
+    _ edge: GraphEdge,
+    in context: inout GraphicsContext,
+    center: CGPoint,
+    color: Color,
+    lineWidth: CGFloat
+  ) {
+    guard let fromPos = viewModel.layout.positions[edge.from],
+      let toPos = viewModel.layout.positions[edge.to]
+    else { return }
+    let from = screenPoint(fromPos, center: center)
+    let to = screenPoint(toPos, center: center)
+    let dx = to.x - from.x
+    let dy = to.y - from.y
+    let length = hypot(dx, dy)
+    // ノードチップに矢印が潜り込まないよう手前で止める
+    let nodeMargin: CGFloat = 36
+    guard length > nodeMargin else { return }
+    let ux = dx / length
+    let uy = dy / length
+    let tip = CGPoint(x: to.x - ux * nodeMargin, y: to.y - uy * nodeMargin)
+
+    var line = Path()
+    line.move(to: from)
+    line.addLine(to: tip)
+    context.stroke(line, with: .color(color), lineWidth: lineWidth)
+
+    let arrowLength: CGFloat = 8
+    let arrowHalfWidth: CGFloat = 4.5
+    let base = CGPoint(x: tip.x - ux * arrowLength, y: tip.y - uy * arrowLength)
+    let perp = CGPoint(x: -uy, y: ux)
+    var arrow = Path()
+    arrow.move(to: tip)
+    arrow.addLine(
+      to: CGPoint(x: base.x + perp.x * arrowHalfWidth, y: base.y + perp.y * arrowHalfWidth))
+    arrow.addLine(
+      to: CGPoint(x: base.x - perp.x * arrowHalfWidth, y: base.y - perp.y * arrowHalfWidth))
+    arrow.closeSubpath()
+    context.fill(arrow, with: .color(color))
   }
 
   private func nodeViews(center: CGPoint) -> some View {
@@ -112,6 +159,47 @@ struct DependencyGraphScreen: View {
         .glassCard(cornerRadius: 999)
         .padding(.top, 8)
     }
+  }
+
+  /// 凡例と、パン/ズーム変形時のみ出す表示リセットボタン。
+  /// 下部は選択バーと重なるため、まとめて右上に置く。
+  private var legendAndReset: some View {
+    VStack(alignment: .trailing, spacing: AppSpacing.sm) {
+      VStack(alignment: .leading, spacing: AppSpacing.xs) {
+        HStack(spacing: AppSpacing.xs) {
+          Circle()
+            .fill(Color.accentColor)
+            .frame(width: 8, height: 8)
+          Text("現在の提案")
+        }
+        HStack(spacing: AppSpacing.xs) {
+          Image(systemName: "arrow.right")
+          Text("先に読む提案へ")
+        }
+      }
+      .font(AppFont.caption2)
+      .foregroundStyle(.secondary)
+      .padding(AppSpacing.sm)
+      .glassCard(cornerRadius: AppRadius.medium)
+
+      if scale != 1 || committedOffset != .zero {
+        Button {
+          withAnimation(.snappy) {
+            scale = 1
+            committedOffset = .zero
+            dragOffset = .zero
+          }
+        } label: {
+          Image(systemName: "arrow.counterclockwise")
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .glassCard(cornerRadius: 999)
+        .accessibilityLabel("表示をリセット")
+      }
+    }
+    .padding(.top, AppSpacing.sm)
+    .padding(.trailing, AppSpacing.md)
   }
 
   @ViewBuilder
@@ -177,32 +265,45 @@ struct DependencyGraphScreen: View {
 }
 
 /// グラフ上の1ノード（提案番号 + 短縮タイトル）。
+/// エッジが下を通るため背景は不透明にし、rootはaccent塗り+白文字で最も目立たせる。
 private struct NodeChipView: View {
   let node: GraphNode
   let isRoot: Bool
   let isSelected: Bool
 
-  @ScaledMetric(relativeTo: .caption2) private var titleFontSize: CGFloat = 9
-
   var body: some View {
     VStack(spacing: 2) {
-      Text("#\(Int(node.id) ?? 0)")
+      Text("SE-\(node.id)")
         .font(AppFont.caption2)
         .bold()
       Text(node.title)
-        .font(.system(size: titleFontSize))
-        .lineLimit(1)
-        .frame(maxWidth: 90)
+        .font(AppFont.caption2)
+        .lineLimit(2)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: 120)
     }
-    .padding(.horizontal, 8)
+    .foregroundStyle(isRoot ? Color.white : Color.primary)
+    .padding(.horizontal, AppSpacing.sm)
     .padding(.vertical, 6)
-    .background(
-      RoundedRectangle(cornerRadius: 8)
-        .fill(isRoot ? Color.accentColor.opacity(0.25) : Color.secondary.opacity(0.15))
-    )
+    .background {
+      ZStack {
+        RoundedRectangle(cornerRadius: AppRadius.medium)
+          .fill(.background)
+        RoundedRectangle(cornerRadius: AppRadius.medium)
+          .fill(isRoot ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill.secondary))
+      }
+    }
     .overlay(
-      RoundedRectangle(cornerRadius: 8)
-        .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+      RoundedRectangle(cornerRadius: AppRadius.medium)
+        .stroke(strokeStyle, lineWidth: isSelected ? 2 : 1)
     )
+  }
+
+  /// 選択枠は非rootならaccent、root（accent塗り）上では白で示す。非選択の非rootは薄い輪郭のみ。
+  private var strokeStyle: AnyShapeStyle {
+    if isSelected {
+      return AnyShapeStyle(isRoot ? Color.white : Color.accentColor)
+    }
+    return isRoot ? AnyShapeStyle(.clear) : AnyShapeStyle(.separator)
   }
 }

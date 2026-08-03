@@ -3,8 +3,31 @@ import SwiftUI
 /// クイズ進捗を表示する再利用可能なビュー
 struct QuizProgressView: View {
   let progress: ProposalProgress
+  /// 一覧行など高さを抑えたい場所向けに、バー+進捗率+回答数を1行へ集約する
+  var compact: Bool = false
 
   var body: some View {
+    if compact {
+      HStack(spacing: AppSpacing.sm) {
+        ProgressView(value: progress.progressRate)
+          .tint(progressColor)
+
+        Text("\(Int(progress.progressPercentage))%")
+          .font(AppFont.caption)
+          .foregroundStyle(.secondary)
+          .monospacedDigit()
+
+        Text("\(progress.answeredCount)/\(progress.totalCount)問")
+          .font(AppFont.caption2)
+          .foregroundStyle(.secondary)
+          .monospacedDigit()
+      }
+    } else {
+      detail
+    }
+  }
+
+  private var detail: some View {
     VStack(alignment: .leading, spacing: 4) {
       // プログレスインジケータと進捗率
       HStack(spacing: 8) {
