@@ -1,6 +1,7 @@
 New
-- Tapping a Daily Challenge notification now opens the challenge directly.
-- Added a Streak Stats screen: current/longest streak, total active days, accuracy, and a calendar view of your recent activity.
+- Added a Learning Stats tab. Your streak stats (current/longest streak, accuracy, and activity history) are now accessible from any tab.
 
 Improvements & Fixes
-- Fixed a layout issue in the Daily Challenge row.
+- Redesigned the proposal list: colored status badges and a more compact layout let you see more proposals at a glance.
+- "Prerequisite proposals" on the quiz screen are now larger, easy-to-tap cards.
+- Improved the dependency graph: arrows and a legend now show reference direction, with larger, more readable nodes.
