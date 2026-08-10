@@ -8,6 +8,7 @@ import type { CloudflareContext } from '@opennextjs/cloudflare';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import type { GetPlatformProxyOptions } from 'wrangler';
 
+import { AnalyticsEvents } from './collections/AnalyticsEvents';
 import { Proposals } from './collections/Proposals';
 import { ProposalReferences } from './collections/ProposalReferences';
 import { QuizAnswers } from './collections/QuizAnswers';
@@ -71,7 +72,7 @@ export default buildConfig({
 		binding: cloudflare.env.DB,
 	}),
 	editor: lexicalEditor(),
-	collections: [Users, Proposals, QuizAnswers, ProposalReferences, TestingProposals, TestingQuizAnswers],
+	collections: [Users, Proposals, QuizAnswers, ProposalReferences, TestingProposals, TestingQuizAnswers, AnalyticsEvents],
 	logger: isProduction ? cloudflareLogger : undefined,
 	// iOS app is the only client; browsers must not be able to call this API.
 	cors: [],

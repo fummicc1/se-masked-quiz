@@ -12,6 +12,7 @@ struct StreakStatsScreen: View {
   @Environment(\.streakRepository) private var streakRepository
   @Environment(\.quizRepository) private var quizRepository
   @Environment(\.testingQuizRepository) private var testingQuizRepository
+  @Environment(\.analytics) private var analytics
 
   @State private var streak: StreakRecord = .empty
   @State private var accuracy: QuizAccuracyAggregator.Result?
@@ -34,6 +35,7 @@ struct StreakStatsScreen: View {
     }
     .navigationTitle("ストリーク統計")
     .task {
+      analytics.track(.statsScreenViewed)
       await loadData()
     }
   }
@@ -50,7 +52,8 @@ struct StreakStatsScreen: View {
       StatTile(
         title: "総学習日数", value: "\(streak.totalActiveDays)日", icon: "calendar", color: .blue)
       StatTile(
-        title: "正答率", value: accuracyText, icon: "checkmark.seal.fill", color: SemanticColor.correct)
+        title: "正答率", value: accuracyText, icon: "checkmark.seal.fill", color: SemanticColor.correct
+      )
     }
     .listRowInsets(EdgeInsets())
     .listRowBackground(Color.clear)

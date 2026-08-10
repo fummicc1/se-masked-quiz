@@ -12,7 +12,8 @@ struct SettingScreen: View {
   @Environment(\.analytics) private var analytics
 
   @AppStorage(ReminderPreferences.enabledKey) private var reminderEnabled = false
-  @AppStorage(ReminderPreferences.hourKey) private var reminderHour = ReminderPreferences.defaultHour
+  @AppStorage(ReminderPreferences.hourKey) private var reminderHour = ReminderPreferences
+    .defaultHour
   @AppStorage(ReminderPreferences.minuteKey) private var reminderMinute = ReminderPreferences
     .defaultMinute
   @AppStorage(AnalyticsSettings.optOutKey) private var analyticsOptOut = false
@@ -78,7 +79,7 @@ struct SettingScreen: View {
         } header: {
           Text("プライバシー")
         } footer: {
-          Text("アプリの改善のため、匿名の利用状況のみを記録します。端末外の第三者には送信しません。")
+          Text("アプリの改善のため、匿名の利用状況のみを開発者のサーバーに送信します。個人を特定する情報は含まれず、第三者に提供することもありません。")
         }
 
         // License Section

@@ -12,7 +12,8 @@ import UserNotifications
 struct se_masked_quizApp: App {
   @Environment(\.scenePhase) private var scenePhase
 
-  private let analytics: any AnalyticsService = ConsoleAnalyticsService()
+  private let analytics: any AnalyticsService = MultiplexAnalyticsService(
+    services: [ConsoleAnalyticsService(), RemoteAnalyticsService()])
   private let streakRepository: any StreakRepository = StreakRepositoryImpl()
   private let quizRepository: any QuizRepository = QuizRepositoryImpl()
   private let notificationService = NotificationService()
