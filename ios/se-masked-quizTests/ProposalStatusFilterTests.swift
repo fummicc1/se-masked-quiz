@@ -2,18 +2,18 @@ import Foundation
 import Testing
 @testable import se_masked_quiz
 
-@Suite("ProposalStatusFilter")
+@Suite("提案のステータス絞り込み")
 struct ProposalStatusFilterTests {
 
-  @Test("全caseがメニュー表示用ラベルを持つ")
+  @Test("絞り込みメニューのすべての項目に表示名がある")
   func allCasesHaveLabels() {
     for filter in ProposalStatusFilter.allCases {
-      #expect(!filter.label.isEmpty, "\(filter) のラベルが空")
+      #expect(!filter.label.isEmpty, "\(filter) の表示名が空です")
     }
   }
 
   @Test(
-    "単一containsのcaseは status[contains] クエリを1つ生成する",
+    "ステータスを選ぶと、その語を含む提案だけを要求する",
     arguments: [
       (ProposalStatusFilter.partiallyImplemented, "partially"),
       (.accepted, "accepted"),
@@ -27,12 +27,12 @@ struct ProposalStatusFilterTests {
     #expect(items == [URLQueryItem(name: "where[and][0][status][contains]", value: keyword)])
   }
 
-  @Test("all はクエリを生成しない")
+  @Test("「すべて」を選んだときは絞り込まない")
   func allProducesNoQuery() {
     #expect(ProposalStatusFilter.all.queryItems(startingAndIndex: 0).isEmpty)
   }
 
-  @Test("startingAndIndex が条件のインデックスに反映される")
+  @Test("キーワード検索と併用しても、絞り込み条件が別枠で追加される")
   func startingAndIndexIsApplied() {
     let items = ProposalStatusFilter.implemented.queryItems(startingAndIndex: 1)
     #expect(
@@ -43,7 +43,7 @@ struct ProposalStatusFilterTests {
   }
 
   @Test(
-    "キーワードは ProposalStatus.parse の判定と整合する",
+    "一覧に表示されるステータスと、絞り込みの分類が一致する",
     arguments: [
       ("**Implemented (Swift 5.9)**", ProposalStatusFilter.implemented),
       ("**Partially implemented (Swift 6.0)**", .partiallyImplemented),
@@ -57,15 +57,14 @@ struct ProposalStatusFilterTests {
     ])
   func keywordsMatchParseResult(raw: String, filter: ProposalStatusFilter) {
     let parsed = ProposalStatus.parse(raw)
-    let matched = ProposalStatusFilterTests.matches(raw: raw, filter: filter)
-    #expect(matched, "\(filter) のクエリ条件が \(raw) にマッチしない")
+    let matched = ProposalStatusFilterTests.simulatedServerMatch(raw: raw, filter: filter)
+    #expect(matched, "「\(raw)」が「\(filter.label)」の絞り込みで取得できません")
     #expect(
       ProposalStatusFilterTests.expectedFilter(for: parsed) == filter,
-      "parse結果 \(parsed) とフィルタ \(filter) が対応しない")
+      "一覧では「\(parsed.label)」と表示されるのに、絞り込みは「\(filter.label)」に分類しています")
   }
 
-  /// サーバーの contains/not_like (case-insensitive LIKE) を模して照合する
-  private static func matches(raw: String, filter: ProposalStatusFilter) -> Bool {
+  private static func simulatedServerMatch(raw: String, filter: ProposalStatusFilter) -> Bool {
     let lowered = raw.lowercased()
     let items = filter.queryItems(startingAndIndex: 0)
     for item in items where item.name.contains("[or]") {
