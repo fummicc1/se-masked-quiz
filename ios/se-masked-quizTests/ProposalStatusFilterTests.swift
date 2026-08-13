@@ -42,7 +42,6 @@ struct ProposalStatusFilterTests {
       ])
   }
 
-  /// フィルタのキーワードが ProposalStatus.parse の判定結果と食い違っていないことを確認する
   @Test(
     "キーワードは ProposalStatus.parse の判定と整合する",
     arguments: [
@@ -70,7 +69,6 @@ struct ProposalStatusFilterTests {
     let lowered = raw.lowercased()
     let items = filter.queryItems(startingAndIndex: 0)
     for item in items where item.name.contains("[or]") {
-      // OR グループはいずれか1つの一致でよい
       if lowered.contains(item.value ?? "") { return true }
     }
     let andItems = items.filter { !$0.name.contains("[or]") }

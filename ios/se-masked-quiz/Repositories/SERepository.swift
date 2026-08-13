@@ -167,7 +167,6 @@ struct SERepository: Sendable {
       URLQueryItem(name: "limit", value: String(limit)),
       URLQueryItem(name: "sort", value: sortOrder.queryValue),
     ]
-    // 検索とステータス絞り込みをANDで両立させるため、条件は where[and][N] 配下に並べる
     var andIndex = 0
     let trimmedSearch = (searchText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     if !trimmedSearch.isEmpty {

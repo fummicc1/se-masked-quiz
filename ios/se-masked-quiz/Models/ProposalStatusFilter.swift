@@ -2,8 +2,7 @@
 //  ProposalStatusFilter.swift
 //  se-masked-quiz
 //
-//  一覧画面のステータス絞り込み条件。Payload REST の where クエリへ写像する。
-//  キーワードは ProposalStatus.parse の判定基準と対応を保つこと。
+//  一覧のステータス絞り込み条件。
 //
 
 import Foundation
@@ -19,8 +18,7 @@ enum ProposalStatusFilter: String, CaseIterable, Sendable, Hashable {
   case rejected
   case withdrawn
 
-  /// メニュー表示用ラベル。一覧バッジ（ProposalStatus.label）の表記と揃える。
-  /// switch にすると case 数で循環的複雑度が閾値(10)を超えるため辞書で引く
+  /// 1つのswitchに全caseを並べると循環的複雑度が閾値(10)を超えるため辞書で引く
   var label: String {
     Self.labels[self] ?? ""
   }
@@ -37,8 +35,6 @@ enum ProposalStatusFilter: String, CaseIterable, Sendable, Hashable {
     .withdrawn: "Withdrawn",
   ]
 
-  /// Payload REST の where[and][N]... に載せる条件を組み立てる。
-  /// status はMarkdown混じりの自由文字列のため contains ベースで照合する。
   func queryItems(startingAndIndex: Int) -> [URLQueryItem] {
     switch self {
     case .all:
@@ -52,7 +48,6 @@ enum ProposalStatusFilter: String, CaseIterable, Sendable, Hashable {
           name: "where[and][\(startingAndIndex + 1)][status][not_like]", value: "partially"),
       ]
     case .withdrawn:
-      // ProposalStatus.parse と同様に "expired" も Withdrawn として扱う
       return [
         URLQueryItem(
           name: "where[and][\(startingAndIndex)][or][0][status][contains]", value: "withdrawn"),
@@ -67,7 +62,6 @@ enum ProposalStatusFilter: String, CaseIterable, Sendable, Hashable {
     }
   }
 
-  /// 単一 contains で照合できる case のキーワード
   private var containsKeyword: String {
     switch self {
     case .partiallyImplemented: return "partially"
