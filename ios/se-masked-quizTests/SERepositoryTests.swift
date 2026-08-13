@@ -124,9 +124,84 @@ struct SERepositoryTests {
     )
     let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
     #expect(items.contains(URLQueryItem(name: "page", value: "2")))
-    #expect(items.contains(URLQueryItem(name: "where[or][0][title][contains]", value: "actor")))
-    #expect(items.contains(URLQueryItem(name: "where[or][1][proposalId][contains]", value: "actor")))
-    #expect(items.contains(URLQueryItem(name: "where[or][2][authors][contains]", value: "actor")))
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][or][0][title][contains]", value: "actor")))
+    #expect(
+      items.contains(
+        URLQueryItem(name: "where[and][0][or][1][proposalId][contains]", value: "actor")))
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][or][2][authors][contains]", value: "actor")))
+  }
+
+  @Test("statusFilter指定時は where[and][0][status][contains] が含まれる")
+  func proposalsURLWithStatusFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .accepted
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "where[and][0][status][contains]", value: "accepted")))
+  }
+
+  @Test("statusFilter=implemented は partially を not_like で除外する")
+  func proposalsURLWithImplementedFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .implemented
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][status][contains]", value: "implemented")))
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][1][status][not_like]", value: "partially")))
+  }
+
+  @Test("statusFilter=withdrawn は withdrawn/expired の OR 条件になる")
+  func proposalsURLWithWithdrawnFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .withdrawn
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(
+      items.contains(
+        URLQueryItem(name: "where[and][0][or][0][status][contains]", value: "withdrawn")))
+    #expect(
+      items.contains(
+        URLQueryItem(name: "where[and][0][or][1][status][contains]", value: "expired")))
+  }
+
+  @Test("searchText と statusFilter の併用時は検索が and[0]、ステータスが and[1] に入る")
+  func proposalsURLWithSearchTextAndStatusFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      searchText: "actor",
+      statusFilter: .rejected
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][or][0][title][contains]", value: "actor")))
+    #expect(items.contains(URLQueryItem(name: "where[and][1][status][contains]", value: "rejected")))
+  }
+
+  @Test("statusFilter=all は where 系クエリを追加しない")
+  func proposalsURLWithAllStatusFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .all
+    )
+    let query = url.query ?? ""
+    #expect(!query.contains("where"))
   }
 
   @Test("searchText が空白のみの場合は where 系クエリを含まない")
