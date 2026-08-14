@@ -18,7 +18,6 @@ enum ProposalStatusFilter: String, CaseIterable, Sendable, Hashable {
   case rejected
   case withdrawn
 
-  /// 1つのswitchに全caseを並べると循環的複雑度が閾値(10)を超えるため辞書で引く
   var label: String {
     Self.labels[self] ?? ""
   }
@@ -40,7 +39,6 @@ enum ProposalStatusFilter: String, CaseIterable, Sendable, Hashable {
     case .all:
       return []
     case .implemented:
-      // "Partially implemented" も "implemented" を含むため not_like で除外する
       return [
         URLQueryItem(
           name: "where[and][\(startingAndIndex)][status][contains]", value: "implemented"),

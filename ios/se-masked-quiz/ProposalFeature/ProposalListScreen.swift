@@ -344,7 +344,6 @@ struct ProposalListScreen: View {
   ) {
     currentPage = 1
     hasNextPage = true
-    // 下端までスクロールした状態で絞り込むと true のままになり、次ページを読む遷移が起きなくなる
     shouldLoadNextPage = false
     proposals = .loading([])
     Task {
