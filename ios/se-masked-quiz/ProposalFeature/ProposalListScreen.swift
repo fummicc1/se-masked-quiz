@@ -28,6 +28,7 @@ struct ProposalListScreen: View {
   @State private var searchText: String = ""
   @State private var debouncedSearchText: String = ""
   @State private var sortOrder: ProposalSortOrder = .descending
+  @State private var statusFilter: ProposalStatusFilter = .all
   @State private var navigationPath = NavigationPath()
 
   /// このタブのトラック（Swift Evolution / Swift Testing）。
@@ -62,10 +63,15 @@ struct ProposalListScreen: View {
         await debounceSearchText()
       }
       .onChange(of: debouncedSearchText) { _, newValue in
-        reloadFromFirstPage(searchText: newValue, sortOrder: sortOrder)
+        reloadFromFirstPage(searchText: newValue, sortOrder: sortOrder, statusFilter: statusFilter)
       }
       .onChange(of: sortOrder) { _, newValue in
-        reloadFromFirstPage(searchText: debouncedSearchText, sortOrder: newValue)
+        reloadFromFirstPage(
+          searchText: debouncedSearchText, sortOrder: newValue, statusFilter: statusFilter)
+      }
+      .onChange(of: statusFilter) { _, newValue in
+        reloadFromFirstPage(
+          searchText: debouncedSearchText, sortOrder: sortOrder, statusFilter: newValue)
       }
       .task {
         await loadInitialProposalsIfNeeded()
@@ -115,6 +121,7 @@ struct ProposalListScreen: View {
         page: currentPage,
         searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText,
         sortOrder: sortOrder,
+        statusFilter: statusFilter,
         track: track
       )
       hasNextPage = response.hasNextPage
@@ -131,7 +138,8 @@ struct ProposalListScreen: View {
     guard proposals.content.isEmpty, !proposals.isLoading else { return }
     do {
       proposals.startLoading()
-      let response = try await repository.fetch(page: currentPage, sortOrder: sortOrder, track: track)
+      let response = try await repository.fetch(
+        page: currentPage, sortOrder: sortOrder, statusFilter: statusFilter, track: track)
       hasNextPage = response.hasNextPage
       self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution(track: track) })
       currentPage += 1
@@ -228,11 +236,16 @@ struct ProposalListScreen: View {
       }
     }
     .overlay {
-      if proposals.content.isEmpty,
-        !proposals.isLoading,
-        !debouncedSearchText.isEmpty
-      {
-        ContentUnavailableView.search(text: debouncedSearchText)
+      if proposals.content.isEmpty, !proposals.isLoading {
+        if !debouncedSearchText.isEmpty {
+          ContentUnavailableView.search(text: debouncedSearchText)
+        } else if statusFilter != .all {
+          ContentUnavailableView(
+            "該当する提案がありません",
+            systemImage: "line.3.horizontal.decrease.circle",
+            description: Text("ステータス「\(statusFilter.label)」の提案は見つかりませんでした")
+          )
+        }
       }
     }
     .navigationTitle(track.title)
@@ -269,7 +282,8 @@ struct ProposalListScreen: View {
           }
           .accessibilityLabel("お気に入り")
         }
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          statusFilterMenu
           sortMenu
         }
       #elseif os(macOS)
@@ -286,10 +300,28 @@ struct ProposalListScreen: View {
           }
           .accessibilityLabel("お気に入り")
         }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+          statusFilterMenu
           sortMenu
         }
       #endif
+    }
+  }
+
+  private var statusFilterMenu: some View {
+    Menu {
+      Picker("ステータス", selection: $statusFilter) {
+        ForEach(ProposalStatusFilter.allCases, id: \.self) { filter in
+          Text(filter.label).tag(filter)
+        }
+      }
+    } label: {
+      Image(
+        systemName: statusFilter == .all
+          ? "line.3.horizontal.decrease.circle"
+          : "line.3.horizontal.decrease.circle.fill"
+      )
+      .accessibilityLabel("ステータスで絞り込み")
     }
   }
 
@@ -307,9 +339,12 @@ struct ProposalListScreen: View {
 
   // MARK: - Private Methods
 
-  private func reloadFromFirstPage(searchText: String, sortOrder: ProposalSortOrder) {
+  private func reloadFromFirstPage(
+    searchText: String, sortOrder: ProposalSortOrder, statusFilter: ProposalStatusFilter
+  ) {
     currentPage = 1
     hasNextPage = true
+    shouldLoadNextPage = false
     proposals = .loading([])
     Task {
       do {
@@ -317,6 +352,7 @@ struct ProposalListScreen: View {
           page: currentPage,
           searchText: searchText.isEmpty ? nil : searchText,
           sortOrder: sortOrder,
+          statusFilter: statusFilter,
           track: track
         )
         hasNextPage = response.hasNextPage

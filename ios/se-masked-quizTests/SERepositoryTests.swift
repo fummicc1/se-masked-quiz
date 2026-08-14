@@ -2,10 +2,10 @@ import Foundation
 import Testing
 @testable import se_masked_quiz
 
-@Suite("SERepository / Payload CMS REST API")
+@Suite("提案一覧の取得")
 struct SERepositoryTests {
 
-  @Test("Payload REST API レスポンスを正しくデコードできる")
+  @Test("サーバーの応答から提案を読み取れる")
   func decodePayloadListResponse() throws {
     let json = """
     {
@@ -41,7 +41,7 @@ struct SERepositoryTests {
     #expect(first.status == nil)
   }
 
-  @Test("PayloadProposal を SwiftEvolution に変換できる")
+  @Test("読み取った提案の各項目がアプリで扱う形に引き継がれる")
   func convertToSwiftEvolution() throws {
     let json = """
     {
@@ -76,7 +76,7 @@ struct SERepositoryTests {
     #expect(se.status == "Accepted")
   }
 
-  @Test("searchText未指定時は where 系クエリを含まず、デフォルトで降順ソートになる")
+  @Test("検索も絞り込みもしないときは、提案番号の新しい順で取得する")
   func proposalsURLWithoutSearchText() throws {
     let url = try SERepository.proposalsURL(
       baseURL: "https://example.com/",
@@ -90,7 +90,7 @@ struct SERepositoryTests {
     #expect(!query.contains("where"))
   }
 
-  @Test("sortOrder=ascending のとき sort=proposalId が指定される")
+  @Test("提案番号の古い順に並べ替えられる")
   func proposalsURLAscendingSort() throws {
     let url = try SERepository.proposalsURL(
       baseURL: "https://example.com",
@@ -102,7 +102,7 @@ struct SERepositoryTests {
     #expect(items.contains(URLQueryItem(name: "sort", value: "proposalId")))
   }
 
-  @Test("sortOrder=descending のとき sort=-proposalId が指定される")
+  @Test("提案番号の新しい順に並べ替えられる")
   func proposalsURLDescendingSort() throws {
     let url = try SERepository.proposalsURL(
       baseURL: "https://example.com",
@@ -114,7 +114,7 @@ struct SERepositoryTests {
     #expect(items.contains(URLQueryItem(name: "sort", value: "-proposalId")))
   }
 
-  @Test("searchText指定時は title/proposalId/authors への contains クエリが含まれる")
+  @Test("キーワード検索はタイトル・提案番号・著者のいずれかに一致する提案を探す")
   func proposalsURLWithSearchText() throws {
     let url = try SERepository.proposalsURL(
       baseURL: "https://example.com",
@@ -124,12 +124,87 @@ struct SERepositoryTests {
     )
     let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
     #expect(items.contains(URLQueryItem(name: "page", value: "2")))
-    #expect(items.contains(URLQueryItem(name: "where[or][0][title][contains]", value: "actor")))
-    #expect(items.contains(URLQueryItem(name: "where[or][1][proposalId][contains]", value: "actor")))
-    #expect(items.contains(URLQueryItem(name: "where[or][2][authors][contains]", value: "actor")))
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][or][0][title][contains]", value: "actor")))
+    #expect(
+      items.contains(
+        URLQueryItem(name: "where[and][0][or][1][proposalId][contains]", value: "actor")))
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][or][2][authors][contains]", value: "actor")))
   }
 
-  @Test("searchText が空白のみの場合は where 系クエリを含まない")
+  @Test("ステータスを選ぶと、そのステータスの提案だけを取得する")
+  func proposalsURLWithStatusFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .accepted
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(items.contains(URLQueryItem(name: "where[and][0][status][contains]", value: "accepted")))
+  }
+
+  @Test("Implemented で絞り込むと、Partially Implemented の提案は除外される")
+  func proposalsURLWithImplementedFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .implemented
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][status][contains]", value: "implemented")))
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][1][status][not_like]", value: "partially")))
+  }
+
+  @Test("Withdrawn で絞り込むと、Expired の提案も含める")
+  func proposalsURLWithWithdrawnFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .withdrawn
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(
+      items.contains(
+        URLQueryItem(name: "where[and][0][or][0][status][contains]", value: "withdrawn")))
+    #expect(
+      items.contains(
+        URLQueryItem(name: "where[and][0][or][1][status][contains]", value: "expired")))
+  }
+
+  @Test("キーワード検索とステータス絞り込みを同時に使うと、両方の条件を満たす提案だけを取得する")
+  func proposalsURLWithSearchTextAndStatusFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      searchText: "actor",
+      statusFilter: .rejected
+    )
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    #expect(
+      items.contains(URLQueryItem(name: "where[and][0][or][0][title][contains]", value: "actor")))
+    #expect(items.contains(URLQueryItem(name: "where[and][1][status][contains]", value: "rejected")))
+  }
+
+  @Test("「すべて」を選んだときはステータスで絞り込まない")
+  func proposalsURLWithAllStatusFilter() throws {
+    let url = try SERepository.proposalsURL(
+      baseURL: "https://example.com",
+      page: 1,
+      limit: 10,
+      statusFilter: .all
+    )
+    let query = url.query ?? ""
+    #expect(!query.contains("where"))
+  }
+
+  @Test("空白だけを入力しても検索条件として扱わない")
   func proposalsURLWithWhitespaceSearchText() throws {
     let url = try SERepository.proposalsURL(
       baseURL: "https://example.com",
@@ -141,7 +216,7 @@ struct SERepositoryTests {
     #expect(!query.contains("where"))
   }
 
-  @Test("proposalsByIdsURL は where[proposalId][in] とカンマ区切りIDを含む")
+  @Test("提案番号を複数指定して、まとめて取得できる")
   func proposalsByIdsURL() throws {
     let url = try SERepository.proposalsByIdsURL(
       baseURL: "https://example.com/",
@@ -152,7 +227,7 @@ struct SERepositoryTests {
     #expect(items.contains(URLQueryItem(name: "limit", value: "2")))
   }
 
-  @Test("graphNodesURL は in と select[proposalId]/select[title] を含み content を要求しない")
+  @Test("依存グラフ用の取得では、本文を除いた提案番号とタイトルだけを要求する")
   func graphNodesURL() throws {
     let url = try SERepository.graphNodesURL(
       baseURL: "https://example.com",
@@ -166,7 +241,7 @@ struct SERepositoryTests {
     #expect(!query.contains("select%5Bcontent%5D"))
   }
 
-  @Test("PayloadProposalNode を select レスポンスからデコードできる（content 不要）")
+  @Test("本文を含まない応答からでも、依存グラフ用の提案を読み取れる")
   func decodeGraphNode() throws {
     let json = """
     {
@@ -182,7 +257,7 @@ struct SERepositoryTests {
     #expect(first.title == "Structured Concurrency")
   }
 
-  @Test("PayloadHTTP.chunked は指定サイズで分割する")
+  @Test("まとめて取得する提案番号は、指定した件数ごとに分割される")
   func chunked() {
     let ids = (1 ... 5).map { String($0) }
     let chunks = PayloadHTTP.chunked(ids, size: 2)
@@ -192,7 +267,7 @@ struct SERepositoryTests {
     #expect(PayloadHTTP.chunked([], size: 2).isEmpty)
   }
 
-  @Test("ページネーション情報を正しくデコードできる")
+  @Test("次のページがあるかどうかを応答から読み取れる")
   func decodePagination() throws {
     let json = """
     {

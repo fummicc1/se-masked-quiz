@@ -49,6 +49,7 @@ struct SERepository: Sendable {
     page: Int,
     searchText: String? = nil,
     sortOrder: ProposalSortOrder = .descending,
+    statusFilter: ProposalStatusFilter = .all,
     track: ProposalTrack = .swiftEvolution
   ) async throws -> PayloadListResponse<PayloadProposal> {
     let baseURL = Env.serverBaseURL
@@ -59,6 +60,7 @@ struct SERepository: Sendable {
       limit: Self.pageSize,
       searchText: searchText,
       sortOrder: sortOrder,
+      statusFilter: statusFilter,
       track: track
     )
     var request = URLRequest(url: requestURL)
@@ -150,6 +152,7 @@ struct SERepository: Sendable {
     limit: Int,
     searchText: String? = nil,
     sortOrder: ProposalSortOrder = .descending,
+    statusFilter: ProposalStatusFilter = .all,
     track: ProposalTrack = .swiftEvolution
   ) throws -> URL {
     var trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -164,12 +167,18 @@ struct SERepository: Sendable {
       URLQueryItem(name: "limit", value: String(limit)),
       URLQueryItem(name: "sort", value: sortOrder.queryValue),
     ]
+    var andIndex = 0
     let trimmedSearch = (searchText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     if !trimmedSearch.isEmpty {
-      items.append(URLQueryItem(name: "where[or][0][title][contains]", value: trimmedSearch))
-      items.append(URLQueryItem(name: "where[or][1][proposalId][contains]", value: trimmedSearch))
-      items.append(URLQueryItem(name: "where[or][2][authors][contains]", value: trimmedSearch))
+      for (fieldIndex, field) in ["title", "proposalId", "authors"].enumerated() {
+        items.append(
+          URLQueryItem(
+            name: "where[and][\(andIndex)][or][\(fieldIndex)][\(field)][contains]",
+            value: trimmedSearch))
+      }
+      andIndex += 1
     }
+    items.append(contentsOf: statusFilter.queryItems(startingAndIndex: andIndex))
     components.queryItems = items
     guard let url = components.url else {
       throw SERepositoryError.invalidBaseURL
