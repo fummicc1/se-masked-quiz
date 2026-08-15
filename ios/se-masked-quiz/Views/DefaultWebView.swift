@@ -52,6 +52,7 @@ enum HTMLContent {
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
     var scrollToMaskIndex: Int?
+    var focusedMaskIndex: Int?
 
     func makeUIView(context: Context) -> UIViewType {
       let view = UIViewType(
@@ -63,7 +64,8 @@ enum HTMLContent {
           htmlContent,
           isCorrect: isCorrect,
           answers: answers,
-          scrollToMaskIndex: scrollToMaskIndex
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         )
       }
       return view
@@ -76,7 +78,8 @@ enum HTMLContent {
           isCorrect: context.coordinator.isCorrect,
           answers: context.coordinator.answers,
           scrollContentOffsetY: context.coordinator.scrollContentOffsetY,
-          scrollToMaskIndex: scrollToMaskIndex
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         )
       }
     }
@@ -95,6 +98,7 @@ enum HTMLContent {
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
     var scrollToMaskIndex: Int?
+    var focusedMaskIndex: Int?
 
     func makeNSView(context: Context) -> NSViewType {
       let view = NSViewType(
@@ -106,7 +110,8 @@ enum HTMLContent {
           htmlContent,
           isCorrect: isCorrect,
           answers: answers,
-          scrollToMaskIndex: scrollToMaskIndex
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         )
       }
       return view
@@ -119,7 +124,8 @@ enum HTMLContent {
           isCorrect: isCorrect,
           answers: answers,
           scrollContentOffsetY: context.coordinator.scrollContentOffsetY,
-          scrollToMaskIndex: scrollToMaskIndex
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         )
       }
     }
@@ -166,7 +172,8 @@ extension WKWebView {
     isCorrect: [Int: Bool],
     answers: [Int: String],
     scrollContentOffsetY: CGFloat = 0,
-    scrollToMaskIndex: Int? = nil
+    scrollToMaskIndex: Int? = nil,
+    focusedMaskIndex: Int? = nil
   ) async {
     if let url = htmlContent.url {
       load(URLRequest(url: url))
@@ -177,7 +184,8 @@ extension WKWebView {
           isCorrect: isCorrect,
           answers: answers,
           scrollContentOffsetY: scrollContentOffsetY,
-          scrollToMaskIndex: scrollToMaskIndex
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         ),
         baseURL: nil
       )
@@ -191,7 +199,8 @@ private func parse(
   isCorrect: [Int: Bool],
   answers: [Int: String],
   scrollContentOffsetY: CGFloat = 0,
-  scrollToMaskIndex: Int? = nil
+  scrollToMaskIndex: Int? = nil,
+  focusedMaskIndex: Int? = nil
 ) async -> String {
   let htmlContent = await html.content
   if case .url = html {
@@ -206,6 +215,7 @@ private func parse(
   let answersJSON =
     (try? jsonEncoder.encode(answers)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
   let scrollTargetJSON = scrollToMaskIndex.map(String.init) ?? "null"
+  let focusedJSON = focusedMaskIndex.map(String.init) ?? "null"
 
   // HTMLエスケープを解除
   let unescapedContent =
@@ -222,6 +232,34 @@ private func parse(
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/styles/atom-one-dark.min.css">
             <style>
+                :root {
+                    color-scheme: light dark;
+                    --bg: #ffffff;
+                    --fg: #1c1c1e;
+                    --code-bg: #f0f0f0;
+                    --code-fg: #9a2c1f;
+                    --mask-bg: rgba(10, 132, 255, 0.10);
+                    --mask-bg-hover: rgba(10, 132, 255, 0.20);
+                    --mask-fg: #1c1c1e;
+                    --mask-border: rgba(10, 132, 255, 0.45);
+                    --correct-bg: #2e7d32;
+                    --incorrect-bg: #c62828;
+                    --focus: #0a84ff;
+                    --focus-halo: rgba(10, 132, 255, 0.20);
+                }
+                @media (prefers-color-scheme: dark) {
+                    :root {
+                        --bg: #1c1c1e;
+                        --fg: #f2f2f7;
+                        --code-bg: #2c2c2e;
+                        --code-fg: #ff9e91;
+                        --mask-bg: rgba(10, 132, 255, 0.22);
+                        --mask-bg-hover: rgba(10, 132, 255, 0.34);
+                        --mask-fg: #f2f2f7;
+                        --mask-border: rgba(100, 180, 255, 0.60);
+                        --focus-halo: rgba(10, 132, 255, 0.28);
+                    }
+                }
                 * {
                     font-family: -apple-system, BlinkMacSystemFont, SF Mono, Menlo, monospace;
                 }
@@ -229,7 +267,9 @@ private func parse(
                     font-size: 20px;
                     line-height: 1.6;
                     padding: 16px;
-                    color: #333;
+                    background-color: var(--bg);
+                    color: var(--fg);
+                    overflow-wrap: break-word;
                 }
                 pre {
                     margin: 16px 0;
@@ -247,37 +287,57 @@ private func parse(
                 }
                 code:not(pre code) {
                     font-size: 0.9em;
-                    background: #f0f0f0;
+                    background: var(--code-bg);
                     padding: 2px 6px;
                     border-radius: 4px;
-                    color: #e06c75;
+                    color: var(--code-fg);
                 }
                 .masked-word {
-                    color: #000;
+                    color: var(--mask-fg);
+                    background-color: var(--mask-bg);
+                    border-bottom: 2px solid var(--mask-border);
                     padding: 2px 6px;
                     border-radius: 4px;
                     cursor: pointer;
                     user-select: none;
-                    display: inline-block;  /* インライン要素をブロック化してクリック領域を確保 */
-                    pointer-events: auto;   /* クリックイベントを確実に有効化 */
+                    display: inline-block;
+                    position: relative;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: transparent;
                 }
                 .masked-word.correct {
                     color: #fff;
-                    background-color: #4CAF50;
+                    background-color: var(--correct-bg);
+                    border-bottom-color: transparent;
                 }
                 .masked-word.incorrect {
                     color: #fff;
-                    background-color: #f44336;
+                    background-color: var(--incorrect-bg);
+                    border-bottom-color: transparent;
                 }
-                .masked-word:hover {
-                    color: #000;
-                    background-color: #ccc;
+                .masked-word.current {
+                    outline: 3px solid var(--focus);
+                    outline-offset: 2px;
+                    box-shadow: 0 0 0 7px var(--focus-halo);
+                    z-index: 1;
                 }
-                .masked-word.correct:hover {
-                    background-color: #45a049;
+                @keyframes mask-pulse {
+                    0%   { transform: scale(1); }
+                    35%  { transform: scale(1.08); }
+                    100% { transform: scale(1); }
                 }
-                .masked-word.incorrect:hover {
-                    background-color: #da190b;
+                .masked-word.current.pulse {
+                    animation: mask-pulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .masked-word.current.pulse { animation: none; }
+                    .masked-word.current { box-shadow: 0 0 0 10px var(--focus-halo); }
+                }
+                @media (hover: hover) {
+                    .masked-word:hover { background-color: var(--mask-bg-hover); }
+                }
+                .masked-word:active {
+                    transform: scale(0.97);
                 }
             </style>
             <script>
@@ -286,6 +346,7 @@ private func parse(
                 const answersMap = \(answersJSON);
                 const initialScrollY = \(scrollContentOffsetY);
                 const scrollTargetIndex = \(scrollTargetJSON);
+                const focusedIndex = \(focusedJSON);
                 
                 function wrapMaskedWords() {
                     const text = document.body.innerHTML;
@@ -296,8 +357,11 @@ private func parse(
                         const isCorrect = isAnswered ? isCorrectMap[index.toString()] : false;
                         const answer = isAnswered ? answersMap[index.toString()] : '';
                         let message = isAnswered ? answer : match;
-                        const className = isAnswered ? (isCorrect ? 'masked-word correct' : 'masked-word incorrect') : 'masked-word';
-                        return `<span class="${className}" data-mask-index="${index}">${message}</span>`;
+                        const classes = ['masked-word'];
+                        if (isAnswered) { classes.push(isCorrect ? 'correct' : 'incorrect'); }
+                        if (index === focusedIndex) { classes.push('current'); }
+                        if (index === scrollTargetIndex) { classes.push('pulse'); }
+                        return `<span class="${classes.join(' ')}" data-mask-index="${index}">${message}</span>`;
                     });
                     document.body.innerHTML = wrappedText;
                     

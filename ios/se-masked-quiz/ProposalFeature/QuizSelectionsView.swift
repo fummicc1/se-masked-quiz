@@ -29,7 +29,13 @@ struct QuizSelectionsView: View {
         }
       }
     }
-    .padding()
+    .padding(AppSpacing.lg)
+    .sensoryFeedback(trigger: viewModel.currentQuiz.map { viewModel.isCorrect[$0.index] }) {
+      _, newValue in
+      guard let isCorrect = newValue ?? nil else { return nil }
+      return isCorrect ? .success : .error
+    }
+    .sensoryFeedback(.selection, trigger: viewModel.pendingScrollMaskIndex)
   }
 
   @ViewBuilder
@@ -39,7 +45,7 @@ struct QuizSelectionsView: View {
     } else if viewModel.nextUnansweredMaskIndex != nil {
       VStack(spacing: AppSpacing.sm) {
         Button("次の問題へ", action: viewModel.goToNextUnansweredQuiz)
-          .buttonStyle(.borderedProminent)
+          .buttonStyle(.glassProminent)
         Button("閉じる", action: viewModel.dismissQuiz)
       }
     } else {

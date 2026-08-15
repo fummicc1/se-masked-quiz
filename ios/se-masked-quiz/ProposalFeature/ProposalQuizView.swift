@@ -95,7 +95,8 @@ struct ProposalQuizView: View {
         },
         isCorrect: $quizViewModel.isCorrect,
         answers: $quizViewModel.answers,
-        scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex
+        scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex,
+        focusedMaskIndex: quizViewModel.currentQuiz?.index
       )
       if quizViewModel.currentQuiz != nil {
         QuizSelectionsView(viewModel: quizViewModel)
