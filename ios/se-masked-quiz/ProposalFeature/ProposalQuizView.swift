@@ -41,12 +41,17 @@ struct ProposalQuizView: View {
     )
   }
 
+  /// 末尾が裸の % だと書式文字列として不正になるため、数値と記号をまとめて差し込む
+  private func percentText(_ percentage: Double) -> String {
+    "\(Int(percentage))%"
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       if let currentScore = quizViewModel.currentScore {
         HStack {
           HStack {
-            Text("現在のスコア: \(Int(currentScore.percentage))%")
+            Text("現在のスコア: \(percentText(currentScore.percentage))")
               .font(AppFont.headline)
             Text("(\(currentScore.correctCount)/\(currentScore.totalCount)問正解)")
               .font(AppFont.subheadline)

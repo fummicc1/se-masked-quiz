@@ -189,6 +189,18 @@ extension WKWebView {
   }
 }
 
+/// WebView 内のマスクは JavaScript が読み上げラベルを組み立てるため、
+/// 語順が言語で変わる分をプレースホルダ入りのテンプレートとして渡す。
+private struct MaskedWordLabels: Encodable {
+  let unanswered = String(localized: "空欄 {position}、未解答")
+  let correct = String(localized: "空欄 {position}、正解、答えは {answer}")
+  let incorrect = String(localized: "空欄 {position}、不正解、答えは {answer}")
+
+  var json: String {
+    (try? JSONEncoder().encode(self)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+  }
+}
+
 private func jsonObject<Value: Encodable>(_ dictionary: [Int: Value]) -> String {
   (try? JSONEncoder().encode(dictionary)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
 }
@@ -352,6 +364,7 @@ private func parse(
             <script>
                 let currentIndex = 0;
                 const initialScrollY = \(scrollContentOffsetY);
+                const quizLabels = \(MaskedWordLabels().json);
                 let quizState = {
                     isCorrect: \(isCorrectJSON),
                     answers: \(answersJSON),
@@ -375,9 +388,12 @@ private func parse(
                 }
 
                 function maskedWordLabel(key, answered, isCorrect, answer) {
-                    const position = Number(key) + 1;
-                    if (!answered) { return '空欄 ' + position + '、未解答'; }
-                    return '空欄 ' + position + '、' + (isCorrect ? '正解' : '不正解') + '、答えは ' + answer;
+                    const template = !answered
+                        ? quizLabels.unanswered
+                        : (isCorrect ? quizLabels.correct : quizLabels.incorrect);
+                    return template
+                        .replace('{position}', String(Number(key) + 1))
+                        .replace('{answer}', answer === undefined ? '' : answer);
                 }
 
                 function renderQuizState() {

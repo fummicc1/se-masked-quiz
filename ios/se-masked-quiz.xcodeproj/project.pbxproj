@@ -217,11 +217,12 @@
 				};
 			};
 			buildConfigurationList = D3921FD92D252F0A008C3732 /* Build configuration list for PBXProject "se-masked-quiz" */;
-			developmentRegion = en;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				ja,
 			);
 			mainGroup = D3921FD52D252F0A008C3732;
 			minimizedProjectReferenceProxies = 1;
