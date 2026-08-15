@@ -365,7 +365,7 @@ private func parse(
                     const pattern = /(＿)+/g;
                     const wrappedText = text.replace(pattern, function(match) {
                         const index = currentIndex++;
-                        return `<span class="masked-word" data-mask-index="${index}" data-placeholder="${match}">${match}</span>`;
+                        return `<span class="masked-word" data-mask-index="${index}" data-placeholder="${match}" role="button" tabindex="0" lang="ja">${match}</span>`;
                     });
                     document.body.innerHTML = wrappedText;
                     renderQuizState();
@@ -374,14 +374,31 @@ private func parse(
                     }
                 }
 
+                function maskedWordLabel(key, answered, isCorrect, answer) {
+                    const position = Number(key) + 1;
+                    if (!answered) { return '空欄 ' + position + '、未解答'; }
+                    return '空欄 ' + position + '、' + (isCorrect ? '正解' : '不正解') + '、答えは ' + answer;
+                }
+
                 function renderQuizState() {
                     document.querySelectorAll('.masked-word').forEach(function(el) {
                         const key = el.dataset.maskIndex;
                         const answered = Object.prototype.hasOwnProperty.call(quizState.isCorrect, key);
-                        el.classList.toggle('correct', answered && quizState.isCorrect[key]);
-                        el.classList.toggle('incorrect', answered && !quizState.isCorrect[key]);
-                        el.classList.toggle('current', String(quizState.focused) === key);
+                        const isCorrect = answered && quizState.isCorrect[key];
+                        const isFocused = String(quizState.focused) === key;
+                        el.classList.toggle('correct', isCorrect);
+                        el.classList.toggle('incorrect', answered && !isCorrect);
+                        el.classList.toggle('current', isFocused);
                         el.textContent = answered ? quizState.answers[key] : el.dataset.placeholder;
+                        el.setAttribute(
+                            'aria-label',
+                            maskedWordLabel(key, answered, isCorrect, quizState.answers[key])
+                        );
+                        if (isFocused) {
+                            el.setAttribute('aria-current', 'true');
+                        } else {
+                            el.removeAttribute('aria-current');
+                        }
                     });
                     if (quizState.scrollTarget === null || quizState.scrollTarget === appliedScrollTarget) {
                         return;
@@ -478,17 +495,29 @@ extension DefaultWebView {
     let config = WKWebViewConfiguration()
     let userScript = WKUserScript(
       source: """
+        function maskedWordFrom(target) {
+            return target && target.closest ? target.closest('.masked-word') : null;
+        }
+
+        function postMaskedWordTap(element) {
+            window.webkit.messageHandlers.maskedWordTapped.postMessage({
+                maskIndex: parseInt(element.dataset.maskIndex)
+            });
+        }
+
         document.addEventListener('click', function(e) {
-            console.log('Click event detected:', e.target);
-            if (e.target.classList.contains('masked-word')) {
-                console.log('Masked word clicked:', e.target.dataset.maskIndex);
-                window.webkit.messageHandlers.maskedWordTapped.postMessage({
-                    maskIndex: parseInt(e.target.dataset.maskIndex)
-                });
-            }
+            const element = maskedWordFrom(e.target);
+            if (element) { postMaskedWordTap(element); }
         });
 
-        // Add scroll event listener
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') { return; }
+            const element = maskedWordFrom(e.target);
+            if (!element) { return; }
+            e.preventDefault();
+            postMaskedWordTap(element);
+        });
+
         let scrollTimeout;
         window.addEventListener('scroll', function() {
             clearTimeout(scrollTimeout);
