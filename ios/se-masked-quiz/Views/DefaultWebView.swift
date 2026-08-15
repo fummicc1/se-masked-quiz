@@ -51,6 +51,8 @@ enum HTMLContent {
     let onMaskedWordTap: (Int) -> Void
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
+    var scrollToMaskIndex: Int?
+    var focusedMaskIndex: Int?
 
     func makeUIView(context: Context) -> UIViewType {
       let view = UIViewType(
@@ -61,22 +63,16 @@ enum HTMLContent {
         await view.loadHtmlContent(
           htmlContent,
           isCorrect: isCorrect,
-          answers: answers
+          answers: answers,
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         )
       }
       return view
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
-      Task {
-        print("contentoffsetY in updateUIView: \(context.coordinator.scrollContentOffsetY)")
-        await uiView.loadHtmlContent(
-          htmlContent,
-          isCorrect: context.coordinator.isCorrect,
-          answers: context.coordinator.answers,
-          scrollContentOffsetY: context.coordinator.scrollContentOffsetY
-        )
-      }
+      applyQuizState(to: uiView, coordinator: context.coordinator)
     }
   }
 #endif
@@ -92,6 +88,8 @@ enum HTMLContent {
     let onMaskedWordTap: (Int) -> Void
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
+    var scrollToMaskIndex: Int?
+    var focusedMaskIndex: Int?
 
     func makeNSView(context: Context) -> NSViewType {
       let view = NSViewType(
@@ -102,26 +100,34 @@ enum HTMLContent {
         await view.loadHtmlContent(
           htmlContent,
           isCorrect: isCorrect,
-          answers: answers
+          answers: answers,
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         )
       }
       return view
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
-      Task {
-        await nsView.loadHtmlContent(
-          htmlContent,
-          isCorrect: isCorrect,
-          answers: answers,
-          scrollContentOffsetY: context.coordinator.scrollContentOffsetY
-        )
-      }
+      applyQuizState(to: nsView, coordinator: context.coordinator)
     }
   }
 #endif
 
 extension DefaultWebView {
+
+  /// 回答のたびに全リロードすると白いちらつきとスクロール位置の復元が走るため、
+  /// 初回ロード後は JavaScript で DOM を部分更新する。
+  fileprivate func applyQuizState(to webView: WKWebView, coordinator: Coordinator) {
+    guard case .string = htmlContent, coordinator.didLoadInitialContent else { return }
+    let script = quizStateScript(
+      isCorrect: isCorrect,
+      answers: answers,
+      focusedMaskIndex: focusedMaskIndex,
+      scrollToMaskIndex: scrollToMaskIndex
+    )
+    webView.evaluateJavaScript(script)
+  }
 
   func makeCoordinator() -> Coordinator {
     .init(
@@ -136,6 +142,7 @@ extension DefaultWebView {
     let onNavigate: (URL) -> Void
     let onMaskedWordTap: (Int) -> Void
     var scrollContentOffsetY: CGFloat
+    var didLoadInitialContent = false
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
 
@@ -160,7 +167,9 @@ extension WKWebView {
     _ htmlContent: HTMLContent,
     isCorrect: [Int: Bool],
     answers: [Int: String],
-    scrollContentOffsetY: CGFloat = 0
+    scrollContentOffsetY: CGFloat = 0,
+    scrollToMaskIndex: Int? = nil,
+    focusedMaskIndex: Int? = nil
   ) async {
     if let url = htmlContent.url {
       load(URLRequest(url: url))
@@ -170,7 +179,9 @@ extension WKWebView {
           html: htmlContent,
           isCorrect: isCorrect,
           answers: answers,
-          scrollContentOffsetY: scrollContentOffsetY
+          scrollContentOffsetY: scrollContentOffsetY,
+          scrollToMaskIndex: scrollToMaskIndex,
+          focusedMaskIndex: focusedMaskIndex
         ),
         baseURL: nil
       )
@@ -178,12 +189,31 @@ extension WKWebView {
   }
 }
 
+private func jsonObject<Value: Encodable>(_ dictionary: [Int: Value]) -> String {
+  (try? JSONEncoder().encode(dictionary)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+}
+
+func quizStateScript(
+  isCorrect: [Int: Bool],
+  answers: [Int: String],
+  focusedMaskIndex: Int?,
+  scrollToMaskIndex: Int?
+) -> String {
+  """
+  window.applyQuizState(\(jsonObject(isCorrect)), \(jsonObject(answers)), \
+  \(focusedMaskIndex.map(String.init) ?? "null"), \
+  \(scrollToMaskIndex.map(String.init) ?? "null"));
+  """
+}
+
 // ref: https://designcode.io/swiftui-advanced-handbook-code-highlighting-in-a-webview
 private func parse(
   html: HTMLContent,
   isCorrect: [Int: Bool],
   answers: [Int: String],
-  scrollContentOffsetY: CGFloat = 0
+  scrollContentOffsetY: CGFloat = 0,
+  scrollToMaskIndex: Int? = nil,
+  focusedMaskIndex: Int? = nil
 ) async -> String {
   let htmlContent = await html.content
   if case .url = html {
@@ -191,12 +221,10 @@ private func parse(
     return htmlContent
   }
 
-  // Convert dictionaries to JSON
-  let jsonEncoder = JSONEncoder()
-  let isCorrectJSON =
-    (try? jsonEncoder.encode(isCorrect)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-  let answersJSON =
-    (try? jsonEncoder.encode(answers)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+  let isCorrectJSON = jsonObject(isCorrect)
+  let answersJSON = jsonObject(answers)
+  let scrollTargetJSON = scrollToMaskIndex.map(String.init) ?? "null"
+  let focusedJSON = focusedMaskIndex.map(String.init) ?? "null"
 
   // HTMLエスケープを解除
   let unescapedContent =
@@ -213,6 +241,34 @@ private func parse(
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/styles/atom-one-dark.min.css">
             <style>
+                :root {
+                    color-scheme: light dark;
+                    --bg: #ffffff;
+                    --fg: #1c1c1e;
+                    --code-bg: #f0f0f0;
+                    --code-fg: #9a2c1f;
+                    --mask-bg: rgba(10, 132, 255, 0.10);
+                    --mask-bg-hover: rgba(10, 132, 255, 0.20);
+                    --mask-fg: #1c1c1e;
+                    --mask-border: rgba(10, 132, 255, 0.45);
+                    --correct-bg: #2e7d32;
+                    --incorrect-bg: #c62828;
+                    --focus: #0a84ff;
+                    --focus-halo: rgba(10, 132, 255, 0.20);
+                }
+                @media (prefers-color-scheme: dark) {
+                    :root {
+                        --bg: #1c1c1e;
+                        --fg: #f2f2f7;
+                        --code-bg: #2c2c2e;
+                        --code-fg: #ff9e91;
+                        --mask-bg: rgba(10, 132, 255, 0.22);
+                        --mask-bg-hover: rgba(10, 132, 255, 0.34);
+                        --mask-fg: #f2f2f7;
+                        --mask-border: rgba(100, 180, 255, 0.60);
+                        --focus-halo: rgba(10, 132, 255, 0.28);
+                    }
+                }
                 * {
                     font-family: -apple-system, BlinkMacSystemFont, SF Mono, Menlo, monospace;
                 }
@@ -220,7 +276,9 @@ private func parse(
                     font-size: 20px;
                     line-height: 1.6;
                     padding: 16px;
-                    color: #333;
+                    background-color: var(--bg);
+                    color: var(--fg);
+                    overflow-wrap: break-word;
                 }
                 pre {
                     margin: 16px 0;
@@ -238,64 +296,114 @@ private func parse(
                 }
                 code:not(pre code) {
                     font-size: 0.9em;
-                    background: #f0f0f0;
+                    background: var(--code-bg);
                     padding: 2px 6px;
                     border-radius: 4px;
-                    color: #e06c75;
+                    color: var(--code-fg);
                 }
                 .masked-word {
-                    color: #000;
+                    color: var(--mask-fg);
+                    background-color: var(--mask-bg);
+                    border-bottom: 2px solid var(--mask-border);
                     padding: 2px 6px;
                     border-radius: 4px;
                     cursor: pointer;
                     user-select: none;
-                    display: inline-block;  /* インライン要素をブロック化してクリック領域を確保 */
-                    pointer-events: auto;   /* クリックイベントを確実に有効化 */
+                    display: inline-block;
+                    position: relative;
+                    touch-action: manipulation;
+                    -webkit-tap-highlight-color: transparent;
                 }
                 .masked-word.correct {
                     color: #fff;
-                    background-color: #4CAF50;
+                    background-color: var(--correct-bg);
+                    border-bottom-color: transparent;
                 }
                 .masked-word.incorrect {
                     color: #fff;
-                    background-color: #f44336;
+                    background-color: var(--incorrect-bg);
+                    border-bottom-color: transparent;
                 }
-                .masked-word:hover {
-                    color: #000;
-                    background-color: #ccc;
+                .masked-word.current {
+                    outline: 3px solid var(--focus);
+                    outline-offset: 2px;
+                    box-shadow: 0 0 0 7px var(--focus-halo);
+                    z-index: 1;
                 }
-                .masked-word.correct:hover {
-                    background-color: #45a049;
+                @keyframes mask-pulse {
+                    0%   { transform: scale(1); }
+                    35%  { transform: scale(1.08); }
+                    100% { transform: scale(1); }
                 }
-                .masked-word.incorrect:hover {
-                    background-color: #da190b;
+                .masked-word.current.pulse {
+                    animation: mask-pulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .masked-word.current.pulse { animation: none; }
+                    .masked-word.current { box-shadow: 0 0 0 10px var(--focus-halo); }
+                }
+                @media (hover: hover) {
+                    .masked-word:hover { background-color: var(--mask-bg-hover); }
+                }
+                .masked-word:active {
+                    transform: scale(0.97);
                 }
             </style>
             <script>
                 let currentIndex = 0;
-                const isCorrectMap = \(isCorrectJSON);
-                const answersMap = \(answersJSON);
                 const initialScrollY = \(scrollContentOffsetY);
-                
+                let quizState = {
+                    isCorrect: \(isCorrectJSON),
+                    answers: \(answersJSON),
+                    focused: \(focusedJSON),
+                    scrollTarget: \(scrollTargetJSON)
+                };
+                let appliedScrollTarget = null;
+
                 function wrapMaskedWords() {
                     const text = document.body.innerHTML;
                     const pattern = /(＿)+/g;
                     const wrappedText = text.replace(pattern, function(match) {
                         const index = currentIndex++;
-                        const isAnswered = isCorrectMap.hasOwnProperty(index.toString());
-                        const isCorrect = isAnswered ? isCorrectMap[index.toString()] : false;
-                        const answer = isAnswered ? answersMap[index.toString()] : '';
-                        let message = isAnswered ? answer : match;
-                        const className = isAnswered ? (isCorrect ? 'masked-word correct' : 'masked-word incorrect') : 'masked-word';
-                        return `<span class="${className}" data-mask-index="${index}">${message}</span>`;
+                        return `<span class="masked-word" data-mask-index="${index}" data-placeholder="${match}">${match}</span>`;
                     });
                     document.body.innerHTML = wrappedText;
-                    
-                    console.log('Total masked groups:', currentIndex);
-                    
-                    // Set initial scroll position after content is loaded
-                    window.scrollTo(0, initialScrollY);
+                    renderQuizState();
+                    if (quizState.scrollTarget === null) {
+                        window.scrollTo(0, initialScrollY);
+                    }
                 }
+
+                function renderQuizState() {
+                    document.querySelectorAll('.masked-word').forEach(function(el) {
+                        const key = el.dataset.maskIndex;
+                        const answered = Object.prototype.hasOwnProperty.call(quizState.isCorrect, key);
+                        el.classList.toggle('correct', answered && quizState.isCorrect[key]);
+                        el.classList.toggle('incorrect', answered && !quizState.isCorrect[key]);
+                        el.classList.toggle('current', String(quizState.focused) === key);
+                        el.textContent = answered ? quizState.answers[key] : el.dataset.placeholder;
+                    });
+                    if (quizState.scrollTarget === null || quizState.scrollTarget === appliedScrollTarget) {
+                        return;
+                    }
+                    const target = document.querySelector('[data-mask-index="' + quizState.scrollTarget + '"]');
+                    if (!target) { return; }
+                    appliedScrollTarget = quizState.scrollTarget;
+                    target.scrollIntoView({ block: 'center' });
+                    target.classList.remove('pulse');
+                    void target.offsetWidth;
+                    target.classList.add('pulse');
+                }
+
+                window.applyQuizState = function(isCorrect, answers, focused, scrollTarget) {
+                    quizState = {
+                        isCorrect: isCorrect,
+                        answers: answers,
+                        focused: focused,
+                        scrollTarget: scrollTarget
+                    };
+                    renderQuizState();
+                };
                 window.addEventListener('load', wrapMaskedWords);
             </script>
         </HEAD>
@@ -323,6 +431,10 @@ private func parse(
 }
 
 extension DefaultWebView.Coordinator: WKNavigationDelegate {
+  func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    didLoadInitialContent = true
+  }
+
   func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
     -> WKNavigationActionPolicy
   {

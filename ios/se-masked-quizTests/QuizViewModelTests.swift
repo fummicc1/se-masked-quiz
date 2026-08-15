@@ -178,7 +178,7 @@ final class QuizViewModelTests: XCTestCase {
     try await Task.sleep(nanoseconds: 100_000_000)
 
     // When
-    sut.showQuizSelections(index: 0)
+    sut.showQuizSelections(maskIndex: 0)
     sut.selectAnswer("Swift")
 
     // Then
@@ -212,7 +212,7 @@ final class QuizViewModelTests: XCTestCase {
     try await Task.sleep(nanoseconds: 100_000_000)
 
     // When
-    sut.showQuizSelections(index: 0)
+    sut.showQuizSelections(maskIndex: 0)
     sut.selectAnswer("Java")
 
     // Then
@@ -245,7 +245,7 @@ final class QuizViewModelTests: XCTestCase {
     // Wait for quiz to load
     try await Task.sleep(nanoseconds: 100_000_000)
 
-    sut.showQuizSelections(index: 0)
+    sut.showQuizSelections(maskIndex: 0)
     XCTAssertNotNil(sut.currentQuiz)
 
     // When
@@ -273,7 +273,7 @@ final class QuizViewModelTests: XCTestCase {
     await sut.configure()
     try await Task.sleep(nanoseconds: 100_000_000)
 
-    sut.showQuizSelections(index: 0)
+    sut.showQuizSelections(maskIndex: 0)
     sut.selectAnswer("Swift")
 
     // Verify initial state
@@ -607,5 +607,120 @@ final class QuizViewModelTests: XCTestCase {
     XCTAssertTrue(sut.allLLMQuiz.isEmpty)
     XCTAssertNil(sut.llmQuizScore)
     XCTAssertNil(mockLLMQuizzes[proposalId])
+  }
+
+  // MARK: - Mask Quiz Navigation
+
+  private func makeMaskQuiz(index: Int, proposalId: String = "0001") -> Quiz {
+    Quiz(
+      id: "q\(index)", proposalId: proposalId, index: index, answer: "correct",
+      choices: ["wrong1", "wrong2"])
+  }
+
+  private func configuredViewModel(
+    maskIndices: [Int], proposalId: String = "0001"
+  ) async throws -> QuizViewModel {
+    setQuizzes(maskIndices.map { makeMaskQuiz(index: $0, proposalId: proposalId) }, for: proposalId)
+    let viewModel = QuizViewModel(proposalId: proposalId, quizRepository: mockRepository)
+    await viewModel.configure()
+    try await Task.sleep(nanoseconds: 100_000_000)
+    return viewModel
+  }
+
+  func testShowQuizSelections_OutOfBounds_DoesNotCrash() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1])
+
+    sut.showQuizSelections(maskIndex: 99)
+
+    XCTAssertNil(sut.currentQuiz)
+  }
+
+  func testShowQuizSelections_WithValidMaskIndex_SetsCurrentQuiz() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1, 2])
+
+    sut.showQuizSelections(maskIndex: 1)
+
+    XCTAssertEqual(sut.currentQuiz?.index, 1)
+  }
+
+  func testShowQuizSelections_ClearsPendingScrollMaskIndex() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1, 2])
+    sut.pendingScrollMaskIndex = 2
+
+    sut.showQuizSelections(maskIndex: 0)
+
+    XCTAssertNil(sut.pendingScrollMaskIndex)
+  }
+
+  func testShowQuizSelections_BeforeConfigure_DoesNothing() async throws {
+    setQuizzes([makeMaskQuiz(index: 0)], for: "0001")
+    sut = QuizViewModel(proposalId: "0001", quizRepository: mockRepository)
+
+    sut.showQuizSelections(maskIndex: 0)
+
+    XCTAssertNil(sut.currentQuiz)
+  }
+
+  func testGoToNextUnansweredQuiz_SetsCurrentQuizAndPendingScroll() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1, 2])
+    sut.showQuizSelections(maskIndex: 0)
+    sut.selectAnswer("correct")
+
+    sut.goToNextUnansweredQuiz()
+
+    XCTAssertEqual(sut.currentQuiz?.index, 1)
+    XCTAssertEqual(sut.pendingScrollMaskIndex, 1)
+  }
+
+  func testGoToNextUnansweredQuiz_AfterAnswering_MovesToNextUnanswered() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1, 2])
+    sut.showQuizSelections(maskIndex: 0)
+    sut.selectAnswer("correct")
+    sut.goToNextUnansweredQuiz()
+    sut.selectAnswer("wrong1")
+
+    sut.goToNextUnansweredQuiz()
+
+    XCTAssertEqual(sut.currentQuiz?.index, 2)
+  }
+
+  func testGoToNextUnansweredQuiz_WhenAllAnswered_DoesNothing() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1])
+    sut.showQuizSelections(maskIndex: 0)
+    sut.selectAnswer("correct")
+    sut.goToNextUnansweredQuiz()
+    sut.selectAnswer("correct")
+
+    sut.goToNextUnansweredQuiz()
+
+    XCTAssertEqual(sut.currentQuiz?.index, 1)
+    XCTAssertEqual(sut.pendingScrollMaskIndex, 1)
+  }
+
+  func testGoToNextUnansweredQuiz_WhenNoQuizzes_DoesNothing() async throws {
+    sut = try await configuredViewModel(maskIndices: [])
+
+    sut.goToNextUnansweredQuiz()
+
+    XCTAssertNil(sut.currentQuiz)
+    XCTAssertNil(sut.pendingScrollMaskIndex)
+  }
+
+  func testNextUnansweredMaskIndex_WhenSomeUnanswered_ReturnsNext() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1, 2])
+    sut.showQuizSelections(maskIndex: 0)
+    sut.selectAnswer("correct")
+
+    XCTAssertEqual(sut.nextUnansweredMaskIndex, 1)
+  }
+
+  func testNextUnansweredMaskIndex_WhenAllAnswered_ReturnsNil() async throws {
+    sut = try await configuredViewModel(maskIndices: [0, 1])
+    sut.showQuizSelections(maskIndex: 0)
+    sut.selectAnswer("correct")
+    sut.goToNextUnansweredQuiz()
+    sut.selectAnswer("correct")
+
+    XCTAssertNil(sut.nextUnansweredMaskIndex)
   }
 }

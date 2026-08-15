@@ -91,11 +91,12 @@ struct ProposalQuizView: View {
           modalWebUrl = url
         },
         onMaskedWordTap: { maskIndex in
-          print("Tapped mask index:", maskIndex)
-          quizViewModel.showQuizSelections(index: maskIndex)
+          quizViewModel.showQuizSelections(maskIndex: maskIndex)
         },
         isCorrect: $quizViewModel.isCorrect,
-        answers: $quizViewModel.answers
+        answers: $quizViewModel.answers,
+        scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex,
+        focusedMaskIndex: quizViewModel.currentQuiz?.index
       )
       if quizViewModel.currentQuiz != nil {
         QuizSelectionsView(viewModel: quizViewModel)

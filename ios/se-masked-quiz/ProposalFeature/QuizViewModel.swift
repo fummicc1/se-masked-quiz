@@ -12,6 +12,7 @@ final class QuizViewModel: ObservableObject {
   @Published var currentScore: ProposalScore?
   @Published var isShowingResetAlert = false
   @Published var isConfigured: Bool = false
+  @Published var pendingScrollMaskIndex: Int?
 
   // MARK: - LLM Quiz Properties (Issue #12)
   @Published var allLLMQuiz: [LLMQuiz] = []
@@ -150,9 +151,24 @@ final class QuizViewModel: ObservableObject {
     }
   }
 
-  func showQuizSelections(index: Int) {
-    guard isConfigured else { return }
-    currentQuiz = allQuiz[index]
+  func showQuizSelections(maskIndex: Int) {
+    guard isConfigured, let quiz = allQuiz.first(where: { $0.index == maskIndex }) else { return }
+    pendingScrollMaskIndex = nil
+    currentQuiz = quiz
+    isShowingQuiz = true
+  }
+
+  var nextUnansweredMaskIndex: Int? {
+    QuizNavigator.nextUnansweredMaskIndex(
+      after: currentQuiz?.index, in: allQuiz, answered: isCorrect)
+  }
+
+  func goToNextUnansweredQuiz() {
+    guard let next = nextUnansweredMaskIndex,
+      let quiz = allQuiz.first(where: { $0.index == next })
+    else { return }
+    currentQuiz = quiz
+    pendingScrollMaskIndex = next
     isShowingQuiz = true
   }
 
