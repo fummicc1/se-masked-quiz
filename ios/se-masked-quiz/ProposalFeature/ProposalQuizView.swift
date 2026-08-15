@@ -91,8 +91,7 @@ struct ProposalQuizView: View {
           modalWebUrl = url
         },
         onMaskedWordTap: { maskIndex in
-          print("Tapped mask index:", maskIndex)
-          quizViewModel.showQuizSelections(index: maskIndex)
+          quizViewModel.showQuizSelections(maskIndex: maskIndex)
         },
         isCorrect: $quizViewModel.isCorrect,
         answers: $quizViewModel.answers
