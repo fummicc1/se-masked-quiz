@@ -51,6 +51,7 @@ enum HTMLContent {
     let onMaskedWordTap: (Int) -> Void
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
+    var scrollToMaskIndex: Int?
 
     func makeUIView(context: Context) -> UIViewType {
       let view = UIViewType(
@@ -61,7 +62,8 @@ enum HTMLContent {
         await view.loadHtmlContent(
           htmlContent,
           isCorrect: isCorrect,
-          answers: answers
+          answers: answers,
+          scrollToMaskIndex: scrollToMaskIndex
         )
       }
       return view
@@ -69,12 +71,12 @@ enum HTMLContent {
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
       Task {
-        print("contentoffsetY in updateUIView: \(context.coordinator.scrollContentOffsetY)")
         await uiView.loadHtmlContent(
           htmlContent,
           isCorrect: context.coordinator.isCorrect,
           answers: context.coordinator.answers,
-          scrollContentOffsetY: context.coordinator.scrollContentOffsetY
+          scrollContentOffsetY: context.coordinator.scrollContentOffsetY,
+          scrollToMaskIndex: scrollToMaskIndex
         )
       }
     }
@@ -92,6 +94,7 @@ enum HTMLContent {
     let onMaskedWordTap: (Int) -> Void
     @Binding var isCorrect: [Int: Bool]
     @Binding var answers: [Int: String]
+    var scrollToMaskIndex: Int?
 
     func makeNSView(context: Context) -> NSViewType {
       let view = NSViewType(
@@ -102,7 +105,8 @@ enum HTMLContent {
         await view.loadHtmlContent(
           htmlContent,
           isCorrect: isCorrect,
-          answers: answers
+          answers: answers,
+          scrollToMaskIndex: scrollToMaskIndex
         )
       }
       return view
@@ -114,7 +118,8 @@ enum HTMLContent {
           htmlContent,
           isCorrect: isCorrect,
           answers: answers,
-          scrollContentOffsetY: context.coordinator.scrollContentOffsetY
+          scrollContentOffsetY: context.coordinator.scrollContentOffsetY,
+          scrollToMaskIndex: scrollToMaskIndex
         )
       }
     }
@@ -160,7 +165,8 @@ extension WKWebView {
     _ htmlContent: HTMLContent,
     isCorrect: [Int: Bool],
     answers: [Int: String],
-    scrollContentOffsetY: CGFloat = 0
+    scrollContentOffsetY: CGFloat = 0,
+    scrollToMaskIndex: Int? = nil
   ) async {
     if let url = htmlContent.url {
       load(URLRequest(url: url))
@@ -170,7 +176,8 @@ extension WKWebView {
           html: htmlContent,
           isCorrect: isCorrect,
           answers: answers,
-          scrollContentOffsetY: scrollContentOffsetY
+          scrollContentOffsetY: scrollContentOffsetY,
+          scrollToMaskIndex: scrollToMaskIndex
         ),
         baseURL: nil
       )
@@ -183,7 +190,8 @@ private func parse(
   html: HTMLContent,
   isCorrect: [Int: Bool],
   answers: [Int: String],
-  scrollContentOffsetY: CGFloat = 0
+  scrollContentOffsetY: CGFloat = 0,
+  scrollToMaskIndex: Int? = nil
 ) async -> String {
   let htmlContent = await html.content
   if case .url = html {
@@ -197,6 +205,7 @@ private func parse(
     (try? jsonEncoder.encode(isCorrect)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
   let answersJSON =
     (try? jsonEncoder.encode(answers)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+  let scrollTargetJSON = scrollToMaskIndex.map(String.init) ?? "null"
 
   // HTMLエスケープを解除
   let unescapedContent =
@@ -276,6 +285,7 @@ private func parse(
                 const isCorrectMap = \(isCorrectJSON);
                 const answersMap = \(answersJSON);
                 const initialScrollY = \(scrollContentOffsetY);
+                const scrollTargetIndex = \(scrollTargetJSON);
                 
                 function wrapMaskedWords() {
                     const text = document.body.innerHTML;
@@ -292,9 +302,15 @@ private func parse(
                     document.body.innerHTML = wrappedText;
                     
                     console.log('Total masked groups:', currentIndex);
-                    
-                    // Set initial scroll position after content is loaded
-                    window.scrollTo(0, initialScrollY);
+
+                    const scrollTarget = scrollTargetIndex === null
+                        ? null
+                        : document.querySelector('[data-mask-index="' + scrollTargetIndex + '"]');
+                    if (scrollTarget) {
+                        scrollTarget.scrollIntoView({ block: 'center' });
+                    } else {
+                        window.scrollTo(0, initialScrollY);
+                    }
                 }
                 window.addEventListener('load', wrapMaskedWords);
             </script>
