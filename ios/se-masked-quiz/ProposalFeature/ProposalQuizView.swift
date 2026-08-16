@@ -46,6 +46,15 @@ struct ProposalQuizView: View {
     "\(Int(percentage))%"
   }
 
+  private var isShowingQuizSheet: Binding<Bool> {
+    Binding(
+      get: { quizViewModel.currentQuiz != nil },
+      set: { isShowing in
+        if !isShowing { quizViewModel.dismissQuiz() }
+      }
+    )
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       if let currentScore = quizViewModel.currentScore {
@@ -106,8 +115,14 @@ struct ProposalQuizView: View {
         scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex,
         focusedMaskIndex: quizViewModel.currentQuiz?.index
       )
-      if quizViewModel.currentQuiz != nil {
+      // item: 版は問題を移動するたびに閉じて開き直すため、表示状態は Bool で持つ
+      .sheet(isPresented: isShowingQuizSheet) {
         QuizSelectionsView(viewModel: quizViewModel)
+          .presentationDetents([.medium, .large])
+          .presentationDragIndicator(.visible)
+          .presentationBackground(.regularMaterial)
+          .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+          .presentationCornerRadius(AppRadius.extraLarge * 2)
       }
     }
     .navigationTitle(proposal.title)

@@ -325,6 +325,8 @@ private func parse(
                     position: relative;
                     touch-action: manipulation;
                     -webkit-tap-highlight-color: transparent;
+                    /* 下部の選択肢パネルに隠れない高さへ着地させる */
+                    scroll-margin-top: 30vh;
                 }
                 .masked-word.correct {
                     color: #fff;
@@ -422,7 +424,7 @@ private func parse(
                     const target = document.querySelector('[data-mask-index="' + quizState.scrollTarget + '"]');
                     if (!target) { return; }
                     appliedScrollTarget = quizState.scrollTarget;
-                    target.scrollIntoView({ block: 'center' });
+                    target.scrollIntoView({ block: 'start' });
                     target.classList.remove('pulse');
                     void target.offsetWidth;
                     target.classList.add('pulse');
