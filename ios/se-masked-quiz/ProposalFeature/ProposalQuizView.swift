@@ -46,6 +46,15 @@ struct ProposalQuizView: View {
     "\(Int(percentage))%"
   }
 
+  private var isShowingQuizSheet: Binding<Bool> {
+    Binding(
+      get: { quizViewModel.currentQuiz != nil },
+      set: { isShowing in
+        if !isShowing { quizViewModel.dismissQuiz() }
+      }
+    )
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       if let currentScore = quizViewModel.currentScore {
@@ -106,15 +115,15 @@ struct ProposalQuizView: View {
         scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex,
         focusedMaskIndex: quizViewModel.currentQuiz?.index
       )
-      // VStack の兄弟にするとパネルの表示のたびにWebViewが縮んで本文が再レイアウトされる
-      .safeAreaInset(edge: .bottom, spacing: 0) {
-        if quizViewModel.currentQuiz != nil {
-          QuizSelectionsView(viewModel: quizViewModel)
-            .padding(.bottom, AppSpacing.sm)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
+      // item: 版は問題を移動するたびに閉じて開き直すため、表示状態は Bool で持つ
+      .sheet(isPresented: isShowingQuizSheet) {
+        QuizSelectionsView(viewModel: quizViewModel)
+          .presentationDetents([.medium, .large])
+          .presentationDragIndicator(.visible)
+          .presentationBackground(.regularMaterial)
+          .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+          .presentationCornerRadius(AppRadius.extraLarge * 2)
       }
-      .animation(.snappy, value: quizViewModel.currentQuiz?.index)
     }
     .navigationTitle(proposal.title)
     #if os(iOS)

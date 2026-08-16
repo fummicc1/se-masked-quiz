@@ -5,23 +5,24 @@ struct QuizSelectionsView: View {
 
   var body: some View {
     if let quiz = viewModel.currentQuiz {
-      VStack(spacing: AppSpacing.md) {
-        header(for: quiz)
+      ScrollView {
+        VStack(spacing: AppSpacing.md) {
+          header(for: quiz)
 
-        ForEach(quiz.allChoices, id: \.self) { choice in
-          QuizChoiceButton(
-            title: choice,
-            state: choiceState(for: choice, quiz: quiz)
-          ) {
-            viewModel.selectAnswer(choice)
+          ForEach(quiz.allChoices, id: \.self) { choice in
+            QuizChoiceButton(
+              title: choice,
+              state: choiceState(for: choice, quiz: quiz)
+            ) {
+              viewModel.selectAnswer(choice)
+            }
           }
-        }
 
-        primaryAction(for: quiz)
+          primaryAction(for: quiz)
+        }
+        .padding(AppSpacing.lg)
       }
-      .padding(AppSpacing.lg)
-      .glassCard(cornerRadius: AppRadius.extraLarge)
-      .padding(.horizontal, AppSpacing.md)
+      .scrollBounceBehavior(.basedOnSize)
       .animation(.snappy, value: viewModel.isCorrect[quiz.index])
       .sensoryFeedback(trigger: viewModel.isCorrect[quiz.index]) { _, newValue in
         guard let isCorrect = newValue else { return nil }
