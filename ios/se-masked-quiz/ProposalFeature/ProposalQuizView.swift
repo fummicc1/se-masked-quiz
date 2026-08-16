@@ -106,9 +106,15 @@ struct ProposalQuizView: View {
         scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex,
         focusedMaskIndex: quizViewModel.currentQuiz?.index
       )
-      if quizViewModel.currentQuiz != nil {
-        QuizSelectionsView(viewModel: quizViewModel)
+      // VStack の兄弟にするとパネルの表示のたびにWebViewが縮んで本文が再レイアウトされる
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        if quizViewModel.currentQuiz != nil {
+          QuizSelectionsView(viewModel: quizViewModel)
+            .padding(.bottom, AppSpacing.sm)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
       }
+      .animation(.snappy, value: quizViewModel.currentQuiz?.index)
     }
     .navigationTitle(proposal.title)
     #if os(iOS)
