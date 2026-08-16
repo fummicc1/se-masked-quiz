@@ -41,15 +41,23 @@ struct ProposalQuizView: View {
     )
   }
 
+  /// 末尾が裸の % だと書式文字列として不正になるため、数値と記号をまとめて差し込む
+  private func percentText(_ percentage: Double) -> String {
+    "\(Int(percentage))%"
+  }
+
   var body: some View {
     VStack(spacing: 0) {
       if let currentScore = quizViewModel.currentScore {
         HStack {
-          Text("現在のスコア: \(Int(currentScore.percentage))%")
-            .font(.headline)
-          Text("(\(currentScore.correctCount)/\(currentScore.totalCount)問正解)")
-            .font(AppFont.subheadline)
-            .foregroundStyle(.secondary)
+          HStack {
+            Text("現在のスコア: \(percentText(currentScore.percentage))")
+              .font(AppFont.headline)
+            Text("(\(currentScore.correctCount)/\(currentScore.totalCount)問正解)")
+              .font(AppFont.subheadline)
+              .foregroundStyle(.secondary)
+          }
+          .accessibilityElement(children: .combine)
           Spacer()
           Button(action: {
             quizViewModel.isShowingResetAlert = true
@@ -132,6 +140,7 @@ struct ProposalQuizView: View {
           }
         } label: {
           Image(systemName: "wand.and.stars")
+            .accessibilityLabel(quizViewModel.hasLLMQuizzes ? "生成済みクイズを開く" : "クイズを生成")
         }
       }
     }

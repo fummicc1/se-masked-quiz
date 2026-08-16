@@ -21,6 +21,8 @@ struct QuizSelectionsView: View {
               Text(isCorrect ? "正解！" : "不正解...")
                 .font(AppFont.title)
                 .foregroundStyle(isCorrect ? SemanticColor.correct : SemanticColor.incorrect)
+                .accessibilityLabel(
+                  isCorrect ? "正解" : "不正解、答えは \(quiz.answer)")
             }
           }
           .frame(height: 32)
@@ -46,6 +48,7 @@ struct QuizSelectionsView: View {
       VStack(spacing: AppSpacing.sm) {
         Button("次の問題へ", action: viewModel.goToNextUnansweredQuiz)
           .buttonStyle(.glassProminent)
+          .accessibilityHint("次の未解答の空欄まで本文をスクロールします")
         Button("閉じる", action: viewModel.dismissQuiz)
       }
     } else {
