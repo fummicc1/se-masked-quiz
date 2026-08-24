@@ -21,6 +21,7 @@ struct ProposalQuizView: View {
   @State private var showsModelRequiredAlert = false
   @State private var isModelAvailable = false
   @State private var relatedProposals: [SwiftEvolution] = []
+  @State private var showsRelatedProposals = true
 
   let proposal: SwiftEvolution
 
@@ -44,6 +45,47 @@ struct ProposalQuizView: View {
   /// 末尾が裸の % だと書式文字列として不正になるため、数値と記号をまとめて差し込む
   private func percentText(_ percentage: Double) -> String {
     "\(Int(percentage))%"
+  }
+
+  @ViewBuilder
+  private var relatedProposalsSection: some View {
+    if !relatedProposals.isEmpty {
+      VStack(alignment: .leading, spacing: AppSpacing.sm) {
+        Button {
+          withAnimation(.easeInOut(duration: 0.2)) {
+            showsRelatedProposals.toggle()
+          }
+        } label: {
+          HStack {
+            Label("先に読むと理解しやすい提案", systemImage: "book")
+              .font(AppFont.subheadline.weight(.semibold))
+            Spacer()
+            Image(systemName: showsRelatedProposals ? "chevron.up" : "chevron.down")
+              .font(AppFont.subheadline)
+              .foregroundStyle(.secondary)
+          }
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+        .accessibilityValue(showsRelatedProposals ? "表示中" : "非表示")
+        .accessibilityHint(showsRelatedProposals ? "タップで隠します" : "タップで表示します")
+        if showsRelatedProposals {
+          ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.sm) {
+              ForEach(relatedProposals) { related in
+                NavigationLink(value: related) {
+                  RelatedProposalCard(proposal: related)
+                }
+                .buttonStyle(.plain)
+              }
+            }
+            .padding(.horizontal)
+          }
+        }
+      }
+      .padding(.vertical, AppSpacing.sm)
+    }
   }
 
   var body: some View {
@@ -73,25 +115,7 @@ struct ProposalQuizView: View {
         .padding(.vertical, AppSpacing.sm)
       }
 
-      if !relatedProposals.isEmpty {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-          Label("先に読むと理解しやすい提案", systemImage: "book")
-            .font(AppFont.subheadline.weight(.semibold))
-            .padding(.horizontal)
-          ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppSpacing.sm) {
-              ForEach(relatedProposals) { related in
-                NavigationLink(value: related) {
-                  RelatedProposalCard(proposal: related)
-                }
-                .buttonStyle(.plain)
-              }
-            }
-            .padding(.horizontal)
-          }
-        }
-        .padding(.vertical, AppSpacing.sm)
-      }
+      relatedProposalsSection
 
       DefaultWebView(
         htmlContent: .string(proposal.content),
