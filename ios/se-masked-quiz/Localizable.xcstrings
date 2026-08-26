@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "ja",
   "strings" : {
+    "%lld/%lld問" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld"
+          }
+        }
+      }
+    },
     "(%lld/%lld問正解)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -67,6 +78,50 @@
         }
       }
     },
+    "クイズを閉じる" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close quiz"
+          }
+        }
+      }
+    },
+    "モデルのダウンロードが必要" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model download required"
+          }
+        }
+      }
+    },
+    "リセット" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        }
+      }
+    },
+    "不正解" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incorrect"
+          }
+        }
+      }
+    },
     "不正解、答えは %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -74,17 +129,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Incorrect. The answer is %@"
-          }
-        }
-      }
-    },
-    "不正解..." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Incorrect..."
           }
         }
       }
@@ -122,39 +166,6 @@
         }
       }
     },
-    "モデルのダウンロードが必要" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model download required"
-          }
-        }
-      }
-    },
-    "リセット" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset"
-          }
-        }
-      }
-    },
-    "現在のスコア: %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current score: %@"
-          }
-        }
-      }
-    },
     "次の問題へ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -188,13 +199,13 @@
         }
       }
     },
-    "正解！" : {
+    "現在のスコア: %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Correct!"
+            "value" : "Current score: %@"
           }
         }
       }
@@ -221,17 +232,6 @@
         }
       }
     },
-    "空欄 {position}、正解、答えは {answer}" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blank {position}, correct. The answer is {answer}"
-          }
-        }
-      }
-    },
     "空欄 {position}、未解答" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -239,6 +239,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Blank {position}, unanswered"
+          }
+        }
+      }
+    },
+    "空欄 {position}、正解、答えは {answer}" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blank {position}, correct. The answer is {answer}"
           }
         }
       }

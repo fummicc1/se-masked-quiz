@@ -30,13 +30,11 @@ struct QuizChoiceButton: View {
         Text(title)
           .multilineTextAlignment(.leading)
           .frame(maxWidth: .infinity, alignment: .leading)
-        if state == .correct {
-          Image(systemName: "checkmark.circle.fill")
-            .foregroundStyle(SemanticColor.correct)
-        } else if state == .incorrectSelected {
-          Image(systemName: "xmark.circle.fill")
-            .foregroundStyle(SemanticColor.incorrect)
-        }
+        // 正誤確定時にアイコンを挿入するとタイトルが再フローするため、枠は常に確保する
+        Image(systemName: iconName)
+          .foregroundStyle(iconColor)
+          .opacity(showsIcon ? 1 : 0)
+          .contentTransition(.symbolEffect(.replace))
       }
       .padding()
       .background(backgroundColor)
@@ -44,9 +42,27 @@ struct QuizChoiceButton: View {
       .clipShape(RoundedRectangle(cornerRadius: AppRadius.medium))
       .animation(.easeInOut(duration: 0.2), value: state)
     }
-    .disabled(isAnswered)
+    // disabled にすると結果表示まで減光され、どれが正解か分かりにくくなる
+    .allowsHitTesting(!isAnswered)
     .accessibilityLabel(title)
     .accessibilityValue(accessibilityValue)
+    .accessibilityRemoveTraits(isAnswered ? .isButton : [])
+  }
+
+  private var showsIcon: Bool {
+    state == .correct || state == .incorrectSelected
+  }
+
+  private var iconName: String {
+    switch state {
+    case .correct: return "checkmark.circle.fill"
+    case .incorrectSelected: return "xmark.circle.fill"
+    case .unanswered, .incorrectOther: return "circle"
+    }
+  }
+
+  private var iconColor: Color {
+    state == .correct ? SemanticColor.correct : SemanticColor.incorrect
   }
 
   private var backgroundColor: Color {
