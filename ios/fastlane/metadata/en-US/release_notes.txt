@@ -1,7 +1,10 @@
 New
-- Added a Learning Stats tab. Your streak stats (current/longest streak, accuracy, and activity history) are now accessible from any tab.
+- Filter the proposal list by status, so you can focus on just Implemented, Active Review, or any other status.
 
 Improvements & Fixes
-- Redesigned the proposal list: colored status badges and a more compact layout let you see more proposals at a glance.
-- "Prerequisite proposals" on the quiz screen are now larger, easy-to-tap cards.
-- Improved the dependency graph: arrows and a legend now show reference direction, with larger, more readable nodes.
+- Answer masked quizzes in two steps: pick a choice, then tap Next. The text scrolls to the next blank for you, so there is no need to hunt for it.
+- Moved the choices into a sheet at the bottom of the screen. You can read the proposal while answering, and buttons no longer shift the moment you make a selection.
+- Added a solved/total counter to the quiz screen so you can see how many questions are left.
+- Made it easier to spot which choice was correct after answering.
+- "Prerequisite proposals" can now be collapsed, giving the proposal text more room.
+- Fixed masked quizzes being unusable with VoiceOver. Blanks are now announced as buttons, and results are spoken aloud.
