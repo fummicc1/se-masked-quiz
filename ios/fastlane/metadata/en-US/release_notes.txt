@@ -1,10 +1,4 @@
 New
-- Filter the proposal list by status, so you can focus on just Implemented, Active Review, or any other status.
-
-Improvements & Fixes
-- Answer masked quizzes in two steps: pick a choice, then tap Next. The text scrolls to the next blank for you, so there is no need to hunt for it.
-- Moved the choices into a sheet at the bottom of the screen. You can read the proposal while answering, and buttons no longer shift the moment you make a selection.
-- Added a solved/total counter to the quiz screen so you can see how many questions are left.
-- Made it easier to spot which choice was correct after answering.
-- "Prerequisite proposals" can now be collapsed, giving the proposal text more room.
-- Fixed masked quizzes being unusable with VoiceOver. Blanks are now announced as buttons, and results are spoken aloud.
+- Hear how an answer is pronounced right inside the quiz, so you no longer need to switch to a dictionary app.
+- Listen to just the paragraph around the blank you are solving. You hear only the part you need instead of the whole proposal, which makes long English text less tiring to follow. Blanks you have not answered yet are never read aloud, so the answer is not given away.
+- Speech no longer stops your music or podcasts. The volume dips while it speaks and returns when it finishes.
