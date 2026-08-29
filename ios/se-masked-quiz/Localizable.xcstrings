@@ -308,6 +308,39 @@
           }
         }
       }
+    },
+    "この段落を聞く" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen to this paragraph"
+          }
+        }
+      }
+    },
+    "答えの発音" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pronounce the answer"
+          }
+        }
+      }
+    },
+    "読み上げを停止" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop speaking"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

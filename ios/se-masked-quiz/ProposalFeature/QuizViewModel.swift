@@ -27,20 +27,30 @@ final class QuizViewModel: ObservableObject {
   @Published var quizGenerationError: String?
   @Published var hasLLMQuizzes: Bool = false
 
+  // MARK: - Speech Properties (Issue #59)
+  @Published private(set) var speakingTarget: SpeechTarget?
+  @Published private(set) var focusedParagraphSegments: [ProposalSegment] = []
+
   private let quizRepository: any QuizRepository
   private let streakRepository: any StreakRepository
   private let analytics: any AnalyticsService
+  private let speechService: any SpeechService
   private let proposalId: String
+  private var speechTask: Task<Void, Never>?
+
+  private static let speechLanguageCode = "en-US"
 
   init(
     proposalId: String,
     quizRepository: any QuizRepository,
     streakRepository: any StreakRepository = StreakRepositoryImpl(),
-    analytics: any AnalyticsService = ConsoleAnalyticsService()
+    analytics: any AnalyticsService = ConsoleAnalyticsService(),
+    speechService: (any SpeechService)? = nil
   ) {
     self.quizRepository = quizRepository
     self.streakRepository = streakRepository
     self.analytics = analytics
+    self.speechService = speechService ?? AVSpeechService()
     self.proposalId = proposalId
   }
 
@@ -153,6 +163,9 @@ final class QuizViewModel: ObservableObject {
 
   func showQuizSelections(maskIndex: Int) {
     guard isConfigured, let quiz = allQuiz.first(where: { $0.index == maskIndex }) else { return }
+    if !continuesSpeaking(movingTo: maskIndex) {
+      stopSpeaking()
+    }
     pendingScrollMaskIndex = nil
     currentQuiz = quiz
     isShowingQuiz = true
@@ -167,6 +180,9 @@ final class QuizViewModel: ObservableObject {
     guard let next = nextUnansweredMaskIndex,
       let quiz = allQuiz.first(where: { $0.index == next })
     else { return }
+    if !continuesSpeaking(movingTo: next) {
+      stopSpeaking()
+    }
     currentQuiz = quiz
     pendingScrollMaskIndex = next
     isShowingQuiz = true
@@ -184,8 +200,74 @@ final class QuizViewModel: ObservableObject {
   }
 
   func dismissQuiz() {
+    stopSpeaking()
     isShowingQuiz = false
     currentQuiz = nil
+  }
+
+  // MARK: - Speech (Issue #59)
+
+  /// 未解答の答えを明かさないため、解答済みの問題だけが発音を提供する
+  var canSpeakTerm: Bool {
+    guard let currentQuiz else { return false }
+    return isCorrect[currentQuiz.index] != nil
+  }
+
+  var canSpeakParagraph: Bool {
+    !focusedParagraphSegments.isEmpty
+  }
+
+  func updateFocusedParagraph(_ segments: [ProposalSegment]) {
+    focusedParagraphSegments = segments
+  }
+
+  func toggleParagraphSpeech() {
+    if speakingTarget == .paragraph {
+      stopSpeaking()
+      return
+    }
+    startSpeaking(
+      .paragraph,
+      text: SpeechTextBuilder.utterance(
+        from: focusedParagraphSegments,
+        answers: answers,
+        answeredIndices: Set(isCorrect.keys)
+      )
+    )
+  }
+
+  func toggleTermSpeech() {
+    guard canSpeakTerm, let currentQuiz else { return }
+    if speakingTarget == .term {
+      stopSpeaking()
+      return
+    }
+    startSpeaking(.term, text: currentQuiz.answer)
+  }
+
+  /// 同じ段落内の移動では読み上げを切らない。空欄が変わっても読んでいる文章は同じため
+  private func continuesSpeaking(movingTo maskIndex: Int) -> Bool {
+    speakingTarget == .paragraph && focusedParagraphSegments.contains(.mask(index: maskIndex))
+  }
+
+  func stopSpeaking() {
+    speechTask?.cancel()
+    speechTask = nil
+    speechService.stop()
+    speakingTarget = nil
+  }
+
+  private func startSpeaking(_ target: SpeechTarget, text: String) {
+    guard !text.isEmpty else { return }
+    speechTask?.cancel()
+    speechService.stop()
+    speakingTarget = target
+    speechTask = Task { [weak self] in
+      guard let self else { return }
+      await speechService.speak(text, languageCode: Self.speechLanguageCode)
+      guard !Task.isCancelled else { return }
+      speakingTarget = nil
+    }
   }
 
   private func updateScore() {
@@ -268,7 +350,7 @@ final class QuizViewModel: ObservableObject {
   private func updateLLMQuizScore() {
     let results = allLLMQuiz.compactMap { quiz -> LLMQuizResult? in
       guard let userAnswer = selectedLLMAnswer[quiz.id],
-            let correct = isLLMCorrect[quiz.id]
+        let correct = isLLMCorrect[quiz.id]
       else { return nil }
 
       return LLMQuizResult(

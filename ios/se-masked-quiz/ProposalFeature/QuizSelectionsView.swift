@@ -9,6 +9,8 @@ struct QuizSelectionsView: View {
         VStack(spacing: AppSpacing.md) {
           header(for: quiz)
 
+          speechRow
+
           ForEach(quiz.allChoices, id: \.self) { choice in
             QuizChoiceButton(
               title: choice,
@@ -64,6 +66,28 @@ struct QuizSelectionsView: View {
       .buttonStyle(.plain)
       .accessibilityLabel("クイズを閉じる")
     }
+  }
+
+  /// 解答の前後で選択肢と「次の問題へ」の位置が動かないよう、高さを固定して常時表示する
+  private var speechRow: some View {
+    HStack(spacing: AppSpacing.sm) {
+      SpeechButton(
+        titleKey: "この段落を聞く",
+        isSpeaking: viewModel.speakingTarget == .paragraph,
+        isEnabled: viewModel.canSpeakParagraph,
+        action: viewModel.toggleParagraphSpeech
+      )
+
+      Spacer()
+
+      SpeechButton(
+        titleKey: "答えの発音",
+        isSpeaking: viewModel.speakingTarget == .term,
+        isEnabled: viewModel.canSpeakTerm,
+        action: viewModel.toggleTermSpeech
+      )
+    }
+    .frame(height: 44)
   }
 
   /// 未解答時も opacity で場所を確保する。表示・非表示で高さが変わると

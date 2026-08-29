@@ -12,6 +12,7 @@ struct ProposalQuizView: View {
   @Environment(\.llmService) var llmService
   @Environment(\.seRepository) var seRepository
   @Environment(\.referenceRepository) var referenceRepository
+  @Environment(\.scenePhase) private var scenePhase
 
   @State private var modalWebUrl: URL?
   @StateObject var quizViewModel: QuizViewModel
@@ -137,7 +138,10 @@ struct ProposalQuizView: View {
         isCorrect: $quizViewModel.isCorrect,
         answers: $quizViewModel.answers,
         scrollToMaskIndex: quizViewModel.pendingScrollMaskIndex,
-        focusedMaskIndex: quizViewModel.currentQuiz?.index
+        focusedMaskIndex: quizViewModel.currentQuiz?.index,
+        onFocusedParagraphChange: { segments in
+          quizViewModel.updateFocusedParagraph(segments)
+        }
       )
       // item: 版は問題を移動するたびに閉じて開き直すため、表示状態は Bool で持つ
       .sheet(isPresented: isShowingQuizSheet) {
@@ -210,6 +214,14 @@ struct ProposalQuizView: View {
     }
     .task {
       await loadRelatedProposals()
+    }
+    .onDisappear {
+      quizViewModel.stopSpeaking()
+    }
+    .onChange(of: scenePhase) { _, newPhase in
+      if newPhase != .active {
+        quizViewModel.stopSpeaking()
+      }
     }
     .onAppear {
       Task {
