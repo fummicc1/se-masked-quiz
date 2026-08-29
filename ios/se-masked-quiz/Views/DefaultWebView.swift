@@ -53,6 +53,7 @@ enum HTMLContent {
     @Binding var answers: [Int: String]
     var scrollToMaskIndex: Int?
     var focusedMaskIndex: Int?
+    var onFocusedParagraphChange: ([ProposalSegment]) -> Void = { _ in }
 
     func makeUIView(context: Context) -> UIViewType {
       let view = UIViewType(
@@ -90,6 +91,7 @@ enum HTMLContent {
     @Binding var answers: [Int: String]
     var scrollToMaskIndex: Int?
     var focusedMaskIndex: Int?
+    var onFocusedParagraphChange: ([ProposalSegment]) -> Void = { _ in }
 
     func makeNSView(context: Context) -> NSViewType {
       let view = NSViewType(
@@ -134,13 +136,15 @@ extension DefaultWebView {
       isCorrect: $isCorrect,
       answers: $answers,
       onNavigate: onNavigate,
-      onMaskedWordTap: onMaskedWordTap
+      onMaskedWordTap: onMaskedWordTap,
+      onFocusedParagraphChange: onFocusedParagraphChange
     )
   }
 
   final class Coordinator: NSObject {
     let onNavigate: (URL) -> Void
     let onMaskedWordTap: (Int) -> Void
+    let onFocusedParagraphChange: ([ProposalSegment]) -> Void
     var scrollContentOffsetY: CGFloat
     var didLoadInitialContent = false
     @Binding var isCorrect: [Int: Bool]
@@ -150,13 +154,15 @@ extension DefaultWebView {
       isCorrect: Binding<[Int: Bool]>,
       answers: Binding<[Int: String]>,
       onNavigate: @escaping (URL) -> Void,
-      onMaskedWordTap: @escaping (Int) -> Void
+      onMaskedWordTap: @escaping (Int) -> Void,
+      onFocusedParagraphChange: @escaping ([ProposalSegment]) -> Void
     ) {
       self._isCorrect = isCorrect
       self._answers = answers
       self.scrollContentOffsetY = 0
       self.onNavigate = onNavigate
       self.onMaskedWordTap = onMaskedWordTap
+      self.onFocusedParagraphChange = onFocusedParagraphChange
     }
   }
 }
@@ -398,6 +404,35 @@ private func parse(
                         .replace('{answer}', answer === undefined ? '' : answer);
                 }
 
+                const READABLE_BLOCKS = 'p, li, blockquote, dd, td, h1, h2, h3, h4, h5, h6';
+                let lastReportedFocus;
+
+                function collectSegments(node, out) {
+                    node.childNodes.forEach(function(child) {
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            out.push({ kind: 'text', text: child.textContent });
+                        } else if (child.nodeType !== Node.ELEMENT_NODE || child.tagName === 'PRE') {
+                            return;
+                        } else if (child.classList.contains('masked-word')) {
+                            out.push({ kind: 'mask', index: parseInt(child.dataset.maskIndex) });
+                        } else {
+                            collectSegments(child, out);
+                        }
+                    });
+                }
+
+                function reportFocusedParagraph() {
+                    if (quizState.focused === lastReportedFocus) { return; }
+                    lastReportedFocus = quizState.focused;
+                    const segments = [];
+                    const focused = (quizState.focused === null || quizState.focused === undefined)
+                        ? null
+                        : document.querySelector('[data-mask-index="' + quizState.focused + '"]');
+                    const block = focused ? focused.closest(READABLE_BLOCKS) : null;
+                    if (block && !block.closest('pre')) { collectSegments(block, segments); }
+                    window.webkit.messageHandlers.focusedParagraphChanged.postMessage({ segments: segments });
+                }
+
                 function renderQuizState() {
                     document.querySelectorAll('.masked-word').forEach(function(el) {
                         const key = el.dataset.maskIndex;
@@ -418,6 +453,7 @@ private func parse(
                             el.removeAttribute('aria-current');
                         }
                     });
+                    reportFocusedParagraph();
                     if (quizState.scrollTarget === null || quizState.scrollTarget === appliedScrollTarget) {
                         return;
                     }
@@ -492,18 +528,42 @@ extension DefaultWebView.Coordinator: WKScriptMessageHandler {
   func userContentController(
     _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
   ) {
-    if message.name == "maskedWordTapped",
-      let body = message.body as? [String: Any],
-      let maskIndex = body["maskIndex"] as? Int
-    {
-      onMaskedWordTap(maskIndex)
-    } else if message.name == "scrollPositionChanged",
-      let body = message.body as? [String: Any],
-      let scrollY = body["scrollY"] as? CGFloat
-    {
-      print("scrollY from JavaScript: \(scrollY)")
-      scrollContentOffsetY = scrollY
+    switch message.name {
+    case "maskedWordTapped":
+      handleMaskedWordTap(message.body)
+    case "scrollPositionChanged":
+      handleScrollPositionChange(message.body)
+    case "focusedParagraphChanged":
+      handleFocusedParagraph(message.body)
+    default:
+      break
     }
+  }
+
+  private func handleFocusedParagraph(_ body: Any) {
+    guard let body = body as? [String: Any], let raw = body["segments"],
+      let data = try? JSONSerialization.data(withJSONObject: raw),
+      let segments = try? JSONDecoder().decode([ProposalSegment].self, from: data)
+    else {
+      onFocusedParagraphChange([])
+      return
+    }
+    onFocusedParagraphChange(segments)
+  }
+
+  private func handleMaskedWordTap(_ body: Any) {
+    guard let body = body as? [String: Any], let maskIndex = body["maskIndex"] as? Int else {
+      return
+    }
+    onMaskedWordTap(maskIndex)
+  }
+
+  private func handleScrollPositionChange(_ body: Any) {
+    guard let body = body as? [String: Any], let scrollY = body["scrollY"] as? CGFloat else {
+      return
+    }
+    print("scrollY from JavaScript: \(scrollY)")
+    scrollContentOffsetY = scrollY
   }
 }
 
@@ -552,6 +612,7 @@ extension DefaultWebView {
     config.userContentController.addUserScript(userScript)
     config.userContentController.add(coordinator, name: "maskedWordTapped")
     config.userContentController.add(coordinator, name: "scrollPositionChanged")
+    config.userContentController.add(coordinator, name: "focusedParagraphChanged")
 
     // デバッグ用のコンソールメッセージを有効化
     config.preferences.setValue(true, forKey: "developerExtrasEnabled")

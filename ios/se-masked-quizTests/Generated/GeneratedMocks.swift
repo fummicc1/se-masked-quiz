@@ -4,9 +4,15 @@
 
 
 
+import AVFoundation
 import Foundation
 import SwiftUI
 @testable import se_masked_quiz
+#if !os(macOS)
+
+#else
+
+#endif
 
 
 final actor QuizRepositoryMock: QuizRepository, @unchecked Sendable {
@@ -320,6 +326,93 @@ final actor FavoriteRepositoryMock: FavoriteRepository, @unchecked Sendable {
             return await getAllFavoritesHandler()
         }
         return [FavoriteEntry]()
+    }
+}
+
+class SpeechServiceMock: SpeechService {
+    init() { }
+
+
+    private(set) var speakCallCount = 0
+    var speakHandler: ((String, String) async -> ())?
+    func speak(_ text: String, languageCode: String) async {
+        speakCallCount += 1
+        if let speakHandler = speakHandler {
+            await speakHandler(text, languageCode)
+        }
+        
+    }
+
+    private(set) var stopCallCount = 0
+    var stopHandler: (() -> ())?
+    func stop() {
+        stopCallCount += 1
+        if let stopHandler = stopHandler {
+            stopHandler()
+        }
+        
+    }
+}
+
+final actor StreakRepositoryMock: StreakRepository, @unchecked Sendable {
+    init() { }
+
+
+    private let recordActivityState = MockoloMutex(MockoloHandlerState<Never, @Sendable (Date) async -> StreakUpdateResult>())
+    nonisolated var recordActivityCallCount: Int {
+        return recordActivityState.withLock(\.callCount)
+    }
+    nonisolated var recordActivityHandler: (@Sendable (Date) async -> StreakUpdateResult)? {
+        get { recordActivityState.withLock(\.handler) }
+        set { recordActivityState.withLock { $0.handler = newValue } }
+    }
+    func recordActivity(on date: Date) async -> StreakUpdateResult {
+        let recordActivityHandler = recordActivityState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let recordActivityHandler = recordActivityHandler {
+            return await recordActivityHandler(date)
+        }
+        fatalError("recordActivityHandler returns can't have a default value thus its handler must be set")
+    }
+
+    private let getStreakState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> StreakRecord>())
+    nonisolated var getStreakCallCount: Int {
+        return getStreakState.withLock(\.callCount)
+    }
+    nonisolated var getStreakHandler: (@Sendable () async -> StreakRecord)? {
+        get { getStreakState.withLock(\.handler) }
+        set { getStreakState.withLock { $0.handler = newValue } }
+    }
+    func getStreak() async -> StreakRecord {
+        let getStreakHandler = getStreakState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let getStreakHandler = getStreakHandler {
+            return await getStreakHandler()
+        }
+        fatalError("getStreakHandler returns can't have a default value thus its handler must be set")
+    }
+
+    private let resetState = MockoloMutex(MockoloHandlerState<Never, @Sendable () async -> ()>())
+    nonisolated var resetCallCount: Int {
+        return resetState.withLock(\.callCount)
+    }
+    nonisolated var resetHandler: (@Sendable () async -> ())? {
+        get { resetState.withLock(\.handler) }
+        set { resetState.withLock { $0.handler = newValue } }
+    }
+    func reset() async {
+        let resetHandler = resetState.withLock { state in
+            state.callCount += 1
+            return state.handler
+        }
+        if let resetHandler = resetHandler {
+            await resetHandler()
+        }
+        
     }
 }
 
