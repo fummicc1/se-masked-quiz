@@ -41,6 +41,15 @@ private func makeBlockingHandler(_ log: SpeechLog) -> (String, String) async -> 
   }
 }
 
+/// 空欄0と空欄1の両方を含む1つの段落
+private let paragraphContainingBlanks0And1: [ProposalSegment] = [
+  .text("Actors provide "),
+  .mask(index: 0),
+  .text(" through "),
+  .mask(index: 1),
+  .text(" domains."),
+]
+
 /// 発話タスクは別タスクで進むため、固定時間ではなく条件が満たされるまで待つ
 @MainActor
 private func waitUntil(_ condition: () -> Bool) async {
@@ -244,6 +253,82 @@ struct QuizSpeechTests {
     viewModel.toggleTermSpeech()
 
     viewModel.showQuizSelections(maskIndex: 1)
+
+    #expect(viewModel.speakingTarget == nil)
+  }
+
+  @Test("同じ段落の次の空欄へ進んでも読み上げが続く")
+  func keepsSpeakingWhenAdvancingWithinSameParagraph() async {
+    let speech = SpeechServiceMock()
+    let log = SpeechLog()
+    speech.speakHandler = makeBlockingHandler(log)
+    let viewModel = await makeViewModel(
+      quizzes: [makeQuiz(index: 0, answer: "isolation"), makeQuiz(index: 1, answer: "actor")],
+      speech: speech)
+    viewModel.showQuizSelections(maskIndex: 0)
+    viewModel.selectAnswer("isolation")
+    viewModel.updateFocusedParagraph(paragraphContainingBlanks0And1)
+    viewModel.toggleParagraphSpeech()
+    let stopsBeforeMove = speech.stopCallCount
+
+    viewModel.goToNextUnansweredQuiz()
+
+    #expect(viewModel.currentQuiz?.index == 1)
+    #expect(viewModel.speakingTarget == .paragraph)
+    #expect(speech.stopCallCount == stopsBeforeMove)
+  }
+
+  @Test("同じ段落の別の空欄をタップしても読み上げが続く")
+  func keepsSpeakingWhenTappingBlankInSameParagraph() async {
+    let speech = SpeechServiceMock()
+    let log = SpeechLog()
+    speech.speakHandler = makeBlockingHandler(log)
+    let viewModel = await makeViewModel(
+      quizzes: [makeQuiz(index: 0, answer: "isolation"), makeQuiz(index: 1, answer: "actor")],
+      speech: speech)
+    viewModel.showQuizSelections(maskIndex: 0)
+    viewModel.updateFocusedParagraph(paragraphContainingBlanks0And1)
+    viewModel.toggleParagraphSpeech()
+
+    viewModel.showQuizSelections(maskIndex: 1)
+
+    #expect(viewModel.currentQuiz?.index == 1)
+    #expect(viewModel.speakingTarget == .paragraph)
+  }
+
+  @Test("別の段落の空欄へ移ると読み上げが止まる")
+  func stopsWhenMovingToAnotherParagraph() async {
+    let speech = SpeechServiceMock()
+    let log = SpeechLog()
+    speech.speakHandler = makeBlockingHandler(log)
+    let viewModel = await makeViewModel(
+      quizzes: [makeQuiz(index: 0, answer: "isolation"), makeQuiz(index: 1, answer: "actor")],
+      speech: speech)
+    viewModel.showQuizSelections(maskIndex: 0)
+    viewModel.updateFocusedParagraph([
+      .text("Actors provide "), .mask(index: 0), .text(" domains."),
+    ])
+    viewModel.toggleParagraphSpeech()
+
+    viewModel.showQuizSelections(maskIndex: 1)
+
+    #expect(viewModel.speakingTarget == nil)
+  }
+
+  @Test("答えの発音は同じ段落内を移動しても止まる")
+  func stopsTermSpeechEvenWithinSameParagraph() async {
+    let speech = SpeechServiceMock()
+    let log = SpeechLog()
+    speech.speakHandler = makeBlockingHandler(log)
+    let viewModel = await makeViewModel(
+      quizzes: [makeQuiz(index: 0, answer: "isolation"), makeQuiz(index: 1, answer: "actor")],
+      speech: speech)
+    viewModel.showQuizSelections(maskIndex: 0)
+    viewModel.selectAnswer("isolation")
+    viewModel.updateFocusedParagraph(paragraphContainingBlanks0And1)
+    viewModel.toggleTermSpeech()
+
+    viewModel.goToNextUnansweredQuiz()
 
     #expect(viewModel.speakingTarget == nil)
   }

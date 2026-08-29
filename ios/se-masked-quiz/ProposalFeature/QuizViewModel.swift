@@ -163,7 +163,9 @@ final class QuizViewModel: ObservableObject {
 
   func showQuizSelections(maskIndex: Int) {
     guard isConfigured, let quiz = allQuiz.first(where: { $0.index == maskIndex }) else { return }
-    stopSpeaking()
+    if !continuesSpeaking(movingTo: maskIndex) {
+      stopSpeaking()
+    }
     pendingScrollMaskIndex = nil
     currentQuiz = quiz
     isShowingQuiz = true
@@ -178,7 +180,9 @@ final class QuizViewModel: ObservableObject {
     guard let next = nextUnansweredMaskIndex,
       let quiz = allQuiz.first(where: { $0.index == next })
     else { return }
-    stopSpeaking()
+    if !continuesSpeaking(movingTo: next) {
+      stopSpeaking()
+    }
     currentQuiz = quiz
     pendingScrollMaskIndex = next
     isShowingQuiz = true
@@ -239,6 +243,11 @@ final class QuizViewModel: ObservableObject {
       return
     }
     startSpeaking(.term, text: currentQuiz.answer)
+  }
+
+  /// 同じ段落内の移動では読み上げを切らない。空欄が変わっても読んでいる文章は同じため
+  private func continuesSpeaking(movingTo maskIndex: Int) -> Bool {
+    speakingTarget == .paragraph && focusedParagraphSegments.contains(.mask(index: maskIndex))
   }
 
   func stopSpeaking() {
@@ -341,7 +350,7 @@ final class QuizViewModel: ObservableObject {
   private func updateLLMQuizScore() {
     let results = allLLMQuiz.compactMap { quiz -> LLMQuizResult? in
       guard let userAnswer = selectedLLMAnswer[quiz.id],
-            let correct = isLLMCorrect[quiz.id]
+        let correct = isLLMCorrect[quiz.id]
       else { return nil }
 
       return LLMQuizResult(
