@@ -42,11 +42,12 @@ final class DeepLinkRouter {
 
   /// 通知タップ時の `UNNotificationResponse.notification.request.content.userInfo` を処理する
   func handle(userInfo: [AnyHashable: Any]) {
-    guard let trackRaw = userInfo[UserInfoKey.track] as? String,
-      let track = ProposalTrack(rawValue: trackRaw),
-      let rawId = userInfo[UserInfoKey.proposalId] as? String
-    else { return }
-    applyChallenge(track: track, proposalId: rawId)
+    guard let challenge = NotificationChallenge(userInfo: userInfo) else { return }
+    handle(challenge)
+  }
+
+  func handle(_ challenge: NotificationChallenge) {
+    applyChallenge(track: challenge.track, proposalId: challenge.proposalId)
   }
 
   private func applyChallenge(track: ProposalTrack, proposalId: String) {
@@ -63,5 +64,21 @@ final class DeepLinkRouter {
       }
     }
     return rawId
+  }
+}
+
+/// 通知の userInfo（`[AnyHashable: Any]`）は Sendable でなく、そのままでは MainActor へ渡せない。
+/// 境界を越える前に必要な値だけ取り出すための入れ物。
+struct NotificationChallenge: Sendable {
+  let track: ProposalTrack
+  let proposalId: String
+
+  init?(userInfo: [AnyHashable: Any]) {
+    guard let trackRaw = userInfo[DeepLinkRouter.UserInfoKey.track] as? String,
+      let track = ProposalTrack(rawValue: trackRaw),
+      let proposalId = userInfo[DeepLinkRouter.UserInfoKey.proposalId] as? String
+    else { return nil }
+    self.track = track
+    self.proposalId = proposalId
   }
 }
