@@ -9,8 +9,6 @@
 import Foundation
 import UserNotifications
 
-/// 通知の userInfo は Sendable でないため、アクター境界を越えずに済むよう MainActor に置く
-@MainActor
 final class AppNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
   private let router: DeepLinkRouter
   private let analytics: any AnalyticsService
@@ -33,7 +31,13 @@ final class AppNotificationDelegate: NSObject, UNUserNotificationCenterDelegate 
     _ center: UNUserNotificationCenter,
     didReceive response: UNNotificationResponse
   ) async {
-    router.handle(userInfo: response.notification.request.content.userInfo)
-    analytics.track(.notificationOpened)
+    let challenge = NotificationChallenge(
+      userInfo: response.notification.request.content.userInfo)
+    await MainActor.run { [router, analytics] in
+      if let challenge {
+        router.handle(challenge)
+      }
+      analytics.track(.notificationOpened)
+    }
   }
 }

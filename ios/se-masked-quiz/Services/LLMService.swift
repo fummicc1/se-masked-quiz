@@ -41,7 +41,7 @@ protocol LLMService: Actor {
   /// モデルをダウンロード（DL完了後にcontainerを保持）
   func downloadModel(
     named modelName: String,
-    progressHandler: @escaping (Progress) -> Void
+    progressHandler: @escaping @Sendable (Progress) -> Void
   ) async throws
 
   /// ダウンロードをキャンセル
@@ -125,7 +125,7 @@ actor LLMServiceImpl: LLMService {
 
   func downloadModel(
     named modelName: String,
-    progressHandler: @escaping (Progress) -> Void
+    progressHandler: @escaping @Sendable (Progress) -> Void
   ) async throws {
     let estimatedSize = try await getModelSize(named: modelName)
     let availableStorage = try await getAvailableStorage()
