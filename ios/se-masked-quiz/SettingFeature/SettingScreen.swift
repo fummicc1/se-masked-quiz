@@ -127,7 +127,10 @@ struct SettingScreen: View {
         if granted {
           let streak = await streakRepository.getStreak()
           await service.scheduleDailyReminder(
-            hour: reminderHour, minute: reminderMinute, currentStreak: streak.currentStreak)
+            hour: reminderHour,
+            minute: reminderMinute,
+            currentStreak: streak.currentStreak(on: Date())
+          )
           analytics.track(.reminderTimeSet(hour: reminderHour, minute: reminderMinute))
         } else {
           // 許可されなかった場合は UI を実態に合わせて戻す
@@ -145,7 +148,10 @@ struct SettingScreen: View {
     Task { @MainActor in
       let streak = await streakRepository.getStreak()
       await service.scheduleDailyReminder(
-        hour: reminderHour, minute: reminderMinute, currentStreak: streak.currentStreak)
+        hour: reminderHour,
+        minute: reminderMinute,
+        currentStreak: streak.currentStreak(on: Date())
+      )
       analytics.track(.reminderTimeSet(hour: reminderHour, minute: reminderMinute))
     }
   }

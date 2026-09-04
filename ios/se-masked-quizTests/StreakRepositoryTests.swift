@@ -89,6 +89,56 @@ struct StreakRepositoryTests {
     #expect(record.isAtRisk(on: day(2026, 1, 3), calendar: cal) == false)
   }
 
+  @Test("最終学習日が今日なら連続日数はそのまま数えられる")
+  func streakSurvivesOnTheSameDay() async {
+    let sut = makeSUT()
+    _ = await sut.recordActivity(on: day(2026, 1, 1))
+    _ = await sut.recordActivity(on: day(2026, 1, 2))
+    let record = await sut.getStreak()
+
+    #expect(record.currentStreak(on: day(2026, 1, 2), calendar: utcCalendar) == 2)
+  }
+
+  @Test("最終学習日が昨日なら、今日まだ解いていなくても連続日数は保たれる")
+  func streakSurvivesUntilTomorrow() async {
+    let sut = makeSUT()
+    _ = await sut.recordActivity(on: day(2026, 1, 1))
+    _ = await sut.recordActivity(on: day(2026, 1, 2))
+    let record = await sut.getStreak()
+
+    #expect(record.currentStreak(on: day(2026, 1, 3), calendar: utcCalendar) == 2)
+  }
+
+  @Test("2日以上あくと、解き直すまでもなく連続日数は0になる")
+  func streakBreaksAfterTwoDays() async {
+    let sut = makeSUT()
+    _ = await sut.recordActivity(on: day(2026, 1, 1))
+    _ = await sut.recordActivity(on: day(2026, 1, 2))
+    let record = await sut.getStreak()
+
+    #expect(record.currentStreak(on: day(2026, 1, 4), calendar: utcCalendar) == 0)
+    #expect(record.currentStreak(on: day(2026, 1, 20), calendar: utcCalendar) == 0)
+  }
+
+  @Test("連続が途切れても最長記録は残る")
+  func brokenStreakKeepsLongest() async {
+    let sut = makeSUT()
+    _ = await sut.recordActivity(on: day(2026, 1, 1))
+    _ = await sut.recordActivity(on: day(2026, 1, 2))
+    let record = await sut.getStreak()
+
+    #expect(record.currentStreak(on: day(2026, 1, 10), calendar: utcCalendar) == 0)
+    #expect(record.longestStreak == 2)
+  }
+
+  @Test("一度も学習していなければ連続日数は0")
+  func noHistoryMeansNoStreak() async {
+    let sut = makeSUT()
+    let record = await sut.getStreak()
+
+    #expect(record.currentStreak(on: day(2026, 1, 1), calendar: utcCalendar) == 0)
+  }
+
   @Test("reset で空に戻る")
   func resetClears() async {
     let sut = makeSUT()

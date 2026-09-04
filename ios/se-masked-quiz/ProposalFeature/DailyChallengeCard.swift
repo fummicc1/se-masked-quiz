@@ -19,6 +19,10 @@ struct DailyChallengeCard: View {
     streak.isActive(on: Date())
   }
 
+  private var currentStreak: Int {
+    streak.currentStreak(on: Date())
+  }
+
   var body: some View {
     HStack(spacing: 14) {
       streakBadge
@@ -63,9 +67,9 @@ struct DailyChallengeCard: View {
       Image(systemName: "flame.fill")
         .font(.title2)
         .foregroundStyle(
-          streak.currentStreak > 0
+          currentStreak > 0
             ? AnyShapeStyle(SemanticColor.streak) : AnyShapeStyle(.secondary))
-      Text("\(streak.currentStreak)")
+      Text("\(currentStreak)")
         .font(AppFont.title)
         .monospacedDigit()
       Text("日連続")
@@ -74,6 +78,6 @@ struct DailyChallengeCard: View {
     }
     .frame(width: 56)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("連続学習\(streak.currentStreak)日")
+    .accessibilityLabel("連続学習\(currentStreak)日")
   }
 }

@@ -43,7 +43,7 @@ struct StreakStatsScreen: View {
   private var statsGrid: some View {
     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
       StatTile(
-        title: "現在のストリーク", value: "\(streak.currentStreak)日", icon: "flame.fill",
+        title: "現在のストリーク", value: "\(streak.currentStreak(on: Date()))日", icon: "flame.fill",
         color: AppColor.brand)
       StatTile(
         title: "最長ストリーク", value: "\(streak.longestStreak)日", icon: "trophy.fill", color: .yellow)

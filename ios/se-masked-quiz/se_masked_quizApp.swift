@@ -71,7 +71,7 @@ struct se_masked_quizApp: App {
       await notificationService.scheduleDailyReminder(
         hour: ReminderPreferences.hour,
         minute: ReminderPreferences.minute,
-        currentStreak: streak.currentStreak,
+        currentStreak: streak.currentStreak(on: Date()),
         track: proposalId != nil ? .swiftEvolution : nil,
         proposalId: proposalId
       )
