@@ -16,6 +16,7 @@ struct StreakRecord: Codable, Equatable, Sendable {
   /// 達成状況を俯瞰表示するために、直近の学習日履歴（180日ローリング）を保持する
   static let activeDaysRetentionDays = 180
 
+  /// 最終学習日時点での連続日数。その後の経過日数を含まないため、表示には `currentStreak(on:)` を使う
   var currentStreak: Int
   var longestStreak: Int
   /// 最後に学習した日（その日の startOfDay）
@@ -53,6 +54,17 @@ struct StreakRecord: Codable, Equatable, Sendable {
   func isActive(on date: Date, calendar: Calendar = .current) -> Bool {
     guard let last = lastActiveDay else { return false }
     return calendar.isDate(last, inSameDayAs: date)
+  }
+
+  /// 指定日から見た連続日数。保存値は `recordActivity(on:)` でしか更新されないため、
+  /// 最終学習日から2日以上空いていれば途切れたものとして 0 を返す
+  func currentStreak(on date: Date, calendar: Calendar = .current) -> Int {
+    guard let last = lastActiveDay else { return 0 }
+    let dayGap =
+      calendar.dateComponents(
+        [.day], from: calendar.startOfDay(for: last), to: calendar.startOfDay(for: date)
+      ).day ?? 0
+    return dayGap <= 1 ? currentStreak : 0
   }
 
   /// ストリークが途切れ間近か（昨日まで継続中だが、今日はまだ未学習）
