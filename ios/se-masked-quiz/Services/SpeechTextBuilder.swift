@@ -8,7 +8,6 @@
 import Foundation
 
 enum SpeechTextBuilder {
-  /// 未解答の空欄を読み上げるときの語
   static let blankPlaceholder = "blank"
 
   static func utterance(
