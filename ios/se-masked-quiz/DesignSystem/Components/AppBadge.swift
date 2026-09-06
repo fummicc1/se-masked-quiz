@@ -2,8 +2,6 @@
 //  AppBadge.swift
 //  se-masked-quiz
 //
-//  Q番号バッジ・難易度バッジ・関連提案カプセルで個別実装されていたピル型UIを統合したコンポーネント。
-//
 
 import SwiftUI
 

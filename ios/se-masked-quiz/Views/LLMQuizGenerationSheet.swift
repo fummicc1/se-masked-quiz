@@ -19,7 +19,6 @@ struct LLMQuizGenerationSheet: View {
   var body: some View {
     NavigationStack {
       Form {
-        // 難易度選択
         Section("難易度") {
           Picker("難易度", selection: $selectedDifficulty) {
             Text("初級").tag(QuizDifficulty.beginner)
@@ -29,12 +28,10 @@ struct LLMQuizGenerationSheet: View {
           .pickerStyle(.segmented)
         }
 
-        // クイズ数選択
         Section("クイズ数") {
           Stepper("\(quizCount)問", value: $quizCount, in: 1...LLMModelConfig.maxQuizCount)
         }
 
-        // 生成進捗表示
         if quizViewModel.isGeneratingQuizzes {
           Section {
             ProgressView(value: quizViewModel.quizGenerationProgress) {
@@ -44,7 +41,6 @@ struct LLMQuizGenerationSheet: View {
           }
         }
 
-        // エラー表示
         if let error = quizViewModel.quizGenerationError {
           Section {
             Text(error)
@@ -53,7 +49,6 @@ struct LLMQuizGenerationSheet: View {
           }
         }
 
-        // 生成ボタン
         Section {
           Button {
             Task {
@@ -86,7 +81,6 @@ struct LLMQuizGenerationSheet: View {
           .buttonStyle(.glassProminent)
         }
 
-        // 説明セクション
         Section {
           VStack(alignment: .leading, spacing: 8) {
             Label("オンデバイスAIでクイズを生成", systemImage: "cpu")

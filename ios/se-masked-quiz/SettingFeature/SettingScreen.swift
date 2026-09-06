@@ -34,7 +34,6 @@ struct SettingScreen: View {
   var body: some View {
     NavigationStack {
       List {
-        // 学習リマインダー Section
         Section {
           Toggle(isOn: $reminderEnabled) {
             Label("毎日のリマインダー", systemImage: "bell.badge")
@@ -52,7 +51,6 @@ struct SettingScreen: View {
           Text("毎日決まった時刻に「今日のクイズ」をお知らせします。続けるほどストリークが伸びます。")
         }
 
-        // LLM Model Section (Issue #12)
         Section("LLMモデル") {
           NavigationLink {
             ModelDownloadView()
@@ -65,7 +63,6 @@ struct SettingScreen: View {
           }
         }
 
-        // プライバシー Section
         Section {
           Toggle(
             isOn: Binding(
@@ -81,7 +78,6 @@ struct SettingScreen: View {
           Text("アプリの改善のため、匿名の利用状況のみを記録します。端末外の第三者には送信しません。")
         }
 
-        // License Section
         Section("ライセンス") {
           NavigationLink {
             LicenseScreen()
@@ -90,7 +86,6 @@ struct SettingScreen: View {
           }
         }
 
-        // App Info Section
         Section("アプリ情報") {
           HStack {
             Text("バージョン")

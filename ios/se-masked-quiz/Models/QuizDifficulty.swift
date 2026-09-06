@@ -6,7 +6,6 @@
 //
 
 
-/// クイズ難易度
 enum QuizDifficulty: String, Codable {
   case beginner = "初級"      // 基本的な用語・概念
   case intermediate = "中級"  // 提案の詳細理解

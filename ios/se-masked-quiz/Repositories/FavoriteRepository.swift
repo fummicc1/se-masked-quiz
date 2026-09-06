@@ -16,10 +16,8 @@ protocol FavoriteRepository: Actor, Sendable {
   /// お気に入り状態をトグルし、トグル後の状態（true = 追加済み）を返す
   func toggle(proposalId: String, track: ProposalTrack) async -> Bool
 
-  /// 指定の提案がお気に入り済みか
   func isFavorite(proposalId: String, track: ProposalTrack) async -> Bool
 
-  /// 全お気に入りエントリを取得
   func getAllFavorites() async -> [FavoriteEntry]
 }
 

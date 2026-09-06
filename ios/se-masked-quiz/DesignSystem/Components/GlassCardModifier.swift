@@ -2,9 +2,6 @@
 //  GlassCardModifier.swift
 //  se-masked-quiz
 //
-//  `.ultraThinMaterial`/`.regularMaterial`/`Color(.secondarySystemBackground)`等
-//  混在していたカード背景をLiquid Glassベースに統合する。
-//
 
 import SwiftUI
 

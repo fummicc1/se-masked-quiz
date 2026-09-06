@@ -2,7 +2,6 @@
 //  FavoriteButton.swift
 //  se-masked-quiz
 //
-//  提案一覧の各行でお気に入り状態をトグルするボタン。
 //  List内でNavigationLinkと並べても開示矢印が重複しないよう、Buttonベースで実装する。
 //
 

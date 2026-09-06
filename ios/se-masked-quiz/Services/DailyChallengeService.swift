@@ -9,7 +9,6 @@
 import Foundation
 
 struct DailyChallengeService: Sendable {
-  /// ローテーションの基準日（エポック）
   static let referenceDate = Date(timeIntervalSince1970: 0)
 
   /// クイズを持つ提案IDの一覧から、その日のチャレンジ対象を返す。
@@ -30,7 +29,6 @@ struct DailyChallengeService: Sendable {
     return sorted[index]
   }
 
-  /// 基準日からの経過日数
   func dayNumber(for date: Date, calendar: Calendar = .current) -> Int {
     let start = calendar.startOfDay(for: Self.referenceDate)
     let day = calendar.startOfDay(for: date)

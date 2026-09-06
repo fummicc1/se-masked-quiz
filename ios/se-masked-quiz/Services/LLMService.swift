@@ -2,7 +2,7 @@
 //  LLMService.swift
 //  se-masked-quiz
 //
-//  Created for Issue #12: Local LLM Quiz Generation
+// ローカルLLMによるクイズ生成サービス
 //
 
 import Foundation
@@ -22,13 +22,10 @@ protocol LLMService: Actor {
   /// - Parameter modelId: Hugging FaceモデルID
   func loadModel(id modelId: String) async throws
 
-  /// モデルをアンロード
   func unloadModel() async
 
-  /// モデルが読み込まれているか
   var isModelLoaded: Bool { get async }
 
-  /// クイズを生成
   func generateQuizzes(
     from content: String,
     proposalId: String,
@@ -44,16 +41,12 @@ protocol LLMService: Actor {
     progressHandler: @escaping @Sendable (Progress) -> Void
   ) async throws
 
-  /// ダウンロードをキャンセル
   func cancelDownload() async
 
-  /// モデルを削除
   func deleteModel(named modelName: String) async throws
 
-  /// モデルがダウンロード済みかどうか
   func isModelDownloaded(named modelName: String) async -> Bool
 
-  /// 利用可能なストレージ容量をチェック
   func getAvailableStorage() async throws -> Int64
 
   /// モデルのサイズを取得

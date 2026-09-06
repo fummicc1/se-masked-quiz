@@ -9,17 +9,12 @@
 import SwiftUI
 
 enum AppFont {
-  /// 画面の主見出し
   static let largeTitle = Font.largeTitle.weight(.bold)
   /// セクション見出し・強調数値
   static let title = Font.title2.weight(.bold)
-  /// カード内の見出し
   static let headline = Font.headline
-  /// 本文
   static let body = Font.body
-  /// サブ見出し
   static let subheadline = Font.subheadline
-  /// 補足説明文
   static let callout = Font.callout
   /// キャプション
   static let caption = Font.caption

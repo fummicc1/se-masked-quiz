@@ -2,22 +2,19 @@
 //  QuizPromptTemplate.swift
 //  se-masked-quiz
 //
-//  Created for Issue #12: LLM Quiz Generation Prompts
-//  Optimized for Qwen3.5-0.8B (4-bit)
+// LLM生成クイズ用プロンプトテンプレート
 //
 
 import Foundation
 
 // MARK: - QuizPromptTemplate
 
-/// クイズ生成用のプロンプトテンプレート
-/// Qwen3.5-0.8B (4-bit) 向けに最適化
+/// クイズ生成用のプロンプトテンプレート。選択中モデル（small/medium）のいずれでも動作する簡潔な指示にしている。
 struct QuizPromptTemplate {
 
   // MARK: - System Prompt
 
-  /// システムプロンプト（LLMの役割定義）
-  /// 小規模モデル向けに簡潔化
+  /// システムプロンプト（LLMの役割定義）。出力トークン数を抑えるため簡潔にしている。
   static let systemPrompt = """
   You are a Swift quiz generator. Create multiple-choice questions about Swift Evolution proposals.
   Output ONLY valid JSON. No explanations outside JSON.
@@ -25,7 +22,6 @@ struct QuizPromptTemplate {
 
   // MARK: - Quiz Generation Prompt
 
-  /// HTMLタグを除去してプレーンテキストを取得
   static func stripHTML(_ html: String) -> String {
     guard !html.isEmpty else { return html }
     // NSAttributedStringよりも軽量な正規表現ベースの除去
@@ -69,7 +65,6 @@ struct QuizPromptTemplate {
 
   // MARK: - Difficulty Instructions
 
-  /// 難易度別の指示（簡潔版）
   private static func difficultyInstruction(for difficulty: QuizDifficulty) -> String {
     switch difficulty {
     case .beginner:
@@ -83,7 +78,6 @@ struct QuizPromptTemplate {
 
   // MARK: - Response Parsing
 
-  /// LLMの応答からクイズを抽出
   struct QuizGenerationResponse: Codable {
     let quizzes: [GeneratedQuizItem]
 
@@ -96,10 +90,6 @@ struct QuizPromptTemplate {
     }
   }
 
-  /// JSON応答をパース
-  /// - Parameter jsonString: LLMからのJSON応答
-  /// - Returns: パースされたクイズ生成応答
-  /// - Throws: デコードエラー
   static func parseResponse(_ jsonString: String) throws -> QuizGenerationResponse {
     let cleaned = cleanJSONString(jsonString)
 
@@ -132,15 +122,12 @@ struct QuizPromptTemplate {
     }
   }
 
-  /// JSON文字列をクリーンアップ
   private static func cleanJSONString(_ input: String) -> String {
-    // JSONブロックを抽出（```jsonタグで囲まれている場合）
     if let jsonStart = input.range(of: "```json"),
        let jsonEnd = input.range(of: "```", range: jsonStart.upperBound..<input.endIndex) {
       return String(input[jsonStart.upperBound..<jsonEnd.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // ```タグのみの場合
     if let jsonStart = input.range(of: "```"),
        let jsonEnd = input.range(of: "```", range: jsonStart.upperBound..<input.endIndex) {
       let extracted = String(input[jsonStart.upperBound..<jsonEnd.lowerBound])
@@ -150,7 +137,6 @@ struct QuizPromptTemplate {
       }
     }
 
-    // 最初の{から最後の}までを抽出
     if let firstBrace = input.firstIndex(of: "{"),
        let lastBrace = input.lastIndex(of: "}") {
       return String(input[firstBrace...lastBrace])
@@ -159,15 +145,12 @@ struct QuizPromptTemplate {
     return input.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
-  /// 壊れたJSONの修復を試行
   private static func tryRepairJSON(_ input: String) -> String {
     var json = input
 
-    // 末尾のカンマを修正
     json = json.replacingOccurrences(of: ",]", with: "]")
     json = json.replacingOccurrences(of: ",}", with: "}")
 
-    // 閉じ括弧が不足している場合は追加
     let openBraces = json.filter { $0 == "{" }.count
     let closeBraces = json.filter { $0 == "}" }.count
     let openBrackets = json.filter { $0 == "[" }.count
@@ -185,20 +168,14 @@ struct QuizPromptTemplate {
 
   // MARK: - Quiz Validation
 
-  /// 生成されたクイズを検証
-  /// - Parameter item: 生成されたクイズアイテム
-  /// - Returns: 検証が成功した場合true
   static func validate(_ item: QuizGenerationResponse.GeneratedQuizItem) -> Bool {
-    // 質問が空でないか
     guard !item.question.isEmpty else { return false }
 
-    // 正解が空でないか
     guard !item.correctAnswer.isEmpty else { return false }
 
     // 誤答が3つあるか（2つ以上あれば許容）
     guard item.wrongAnswers.count >= 2 else { return false }
 
-    // すべての誤答が空でないか
     guard item.wrongAnswers.allSatisfy({ !$0.isEmpty }) else { return false }
 
     // 正解と誤答が重複していないか
