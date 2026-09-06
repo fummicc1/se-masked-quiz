@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// クイズ進捗を表示する再利用可能なビュー
 struct QuizProgressView: View {
   let progress: ProposalProgress
   /// 一覧行など高さを抑えたい場所向けに、バー+進捗率+回答数を1行へ集約する
@@ -29,7 +28,6 @@ struct QuizProgressView: View {
 
   private var detail: some View {
     VStack(alignment: .leading, spacing: 4) {
-      // プログレスインジケータと進捗率
       HStack(spacing: 8) {
         ProgressView(value: progress.progressRate)
           .tint(progressColor)
@@ -40,7 +38,6 @@ struct QuizProgressView: View {
           .monospacedDigit()
       }
 
-      // 詳細情報（回答数、正解率）
       HStack(spacing: 12) {
         Text("\(progress.answeredCount)/\(progress.totalCount)問")
           .font(AppFont.caption2)
@@ -55,7 +52,6 @@ struct QuizProgressView: View {
     }
   }
 
-  /// 進捗状態に応じた色
   private var progressColor: Color {
     switch progress.status {
     case .notStarted:

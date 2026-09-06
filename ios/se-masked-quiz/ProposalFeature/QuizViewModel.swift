@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 final class QuizViewModel: ObservableObject {
-  // MARK: - Mask Quiz (R2) Properties
+  // MARK: - Mask Quiz Properties
   @Published var currentQuiz: Quiz?
   @Published var isShowingQuiz = false
   @Published var selectedAnswer: [Int: String] = [:]
@@ -14,7 +14,7 @@ final class QuizViewModel: ObservableObject {
   @Published var isConfigured: Bool = false
   @Published var pendingScrollMaskIndex: Int?
 
-  // MARK: - LLM Quiz Properties (Issue #12)
+  // MARK: - LLM Quiz Properties
   @Published var allLLMQuiz: [LLMQuiz] = []
   @Published var currentLLMQuiz: LLMQuiz?
   @Published var llmQuizScore: LLMQuizScore?
@@ -27,7 +27,7 @@ final class QuizViewModel: ObservableObject {
   @Published var quizGenerationError: String?
   @Published var hasLLMQuizzes: Bool = false
 
-  // MARK: - Speech Properties (Issue #59)
+  // MARK: - Speech Properties
   @Published private(set) var speakingTarget: SpeechTarget?
   @Published private(set) var focusedParagraphSegments: [ProposalSegment] = []
 
@@ -54,7 +54,7 @@ final class QuizViewModel: ObservableObject {
     self.proposalId = proposalId
   }
 
-  // MARK: - LLM Quiz Generation (Issue #12)
+  // MARK: - LLM Quiz Generation
 
   /// LLMを使ってクイズを生成
   /// - Parameters:
@@ -75,7 +75,6 @@ final class QuizViewModel: ObservableObject {
     quizGenerationError = nil
 
     do {
-      // モデルを読み込み（まだ読み込まれていない場合）
       let isLoaded = await llmService.isModelLoaded
       if !isLoaded {
         quizGenerationProgress = 0.1
@@ -84,7 +83,6 @@ final class QuizViewModel: ObservableObject {
 
       quizGenerationProgress = 0.3
 
-      // LLMクイズを生成（LLMQuiz型で返される）
       let generatedQuizzes = try await llmService.generateQuizzes(
         from: content,
         proposalId: proposalId,
@@ -94,14 +92,12 @@ final class QuizViewModel: ObservableObject {
 
       quizGenerationProgress = 0.8
 
-      // 生成されたLLMクイズを保存
       await quizRepository.saveLLMQuizzes(generatedQuizzes, for: proposalId)
 
       quizGenerationProgress = 1.0
       hasLLMQuizzes = true
       allLLMQuiz = generatedQuizzes
 
-      // クイズリストを再読み込み
       await configure()
 
     } catch {
@@ -111,7 +107,6 @@ final class QuizViewModel: ObservableObject {
     isGeneratingQuizzes = false
   }
 
-  /// LLM生成クイズを削除
   func deleteLLMQuizzes() async {
     await quizRepository.deleteLLMQuizzes(for: proposalId)
     hasLLMQuizzes = false
@@ -124,19 +119,16 @@ final class QuizViewModel: ObservableObject {
 
   func configure() async {
     do {
-      // R2マスククイズを取得
       allQuiz = try await quizRepository.fetchQuiz(for: proposalId)
 
-      // LLM生成クイズを別途取得
       allLLMQuiz = await quizRepository.getLLMQuizzes(for: proposalId)
       hasLLMQuizzes = await quizRepository.hasLLMQuizzes(for: proposalId)
 
       isShowingQuiz = true
       selectedAnswer = [:]
       isCorrect = [:]
-      answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.index, $0.answer) })
+      answers = Dictionary(uniqueKeysWithValues: allQuiz.map { ($0.maskIndex, $0.answer) })
 
-      // マスククイズのスコアを読み込み
       if let existingScore = await quizRepository.getScore(for: proposalId) {
         currentScore = existingScore
         for result in existingScore.questionResults {
@@ -145,7 +137,6 @@ final class QuizViewModel: ObservableObject {
         }
       }
 
-      // LLMクイズのスコアを読み込み
       if let existingLLMScore = await quizRepository.getLLMQuizScore(for: proposalId) {
         llmQuizScore = existingLLMScore
         for result in existingLLMScore.results {
@@ -162,7 +153,7 @@ final class QuizViewModel: ObservableObject {
   }
 
   func showQuizSelections(maskIndex: Int) {
-    guard isConfigured, let quiz = allQuiz.first(where: { $0.index == maskIndex }) else { return }
+    guard isConfigured, let quiz = allQuiz.first(where: { $0.maskIndex == maskIndex }) else { return }
     if !continuesSpeaking(movingTo: maskIndex) {
       stopSpeaking()
     }
@@ -173,12 +164,12 @@ final class QuizViewModel: ObservableObject {
 
   var nextUnansweredMaskIndex: Int? {
     QuizNavigator.nextUnansweredMaskIndex(
-      after: currentQuiz?.index, in: allQuiz, answered: isCorrect)
+      after: currentQuiz?.maskIndex, in: allQuiz, answered: isCorrect)
   }
 
   func goToNextUnansweredQuiz() {
     guard let next = nextUnansweredMaskIndex,
-      let quiz = allQuiz.first(where: { $0.index == next })
+      let quiz = allQuiz.first(where: { $0.maskIndex == next })
     else { return }
     if !continuesSpeaking(movingTo: next) {
       stopSpeaking()
@@ -189,9 +180,9 @@ final class QuizViewModel: ObservableObject {
   }
 
   func selectAnswer(_ answer: String) {
-    if let currentQuiz = currentQuiz, isCorrect[currentQuiz.index] == nil {
-      selectedAnswer[currentQuiz.index] = answer
-      let index = currentQuiz.index
+    if let currentQuiz = currentQuiz, isCorrect[currentQuiz.maskIndex] == nil {
+      selectedAnswer[currentQuiz.maskIndex] = answer
+      let index = currentQuiz.maskIndex
       let correct = answer == currentQuiz.answer
       isCorrect[index] = correct
       updateScore()
@@ -205,12 +196,12 @@ final class QuizViewModel: ObservableObject {
     currentQuiz = nil
   }
 
-  // MARK: - Speech (Issue #59)
+  // MARK: - Speech
 
   /// 未解答の答えを明かさないため、解答済みの問題だけが発音を提供する
   var canSpeakTerm: Bool {
     guard let currentQuiz else { return false }
-    return isCorrect[currentQuiz.index] != nil
+    return isCorrect[currentQuiz.maskIndex] != nil
   }
 
   var canSpeakParagraph: Bool {
@@ -273,7 +264,7 @@ final class QuizViewModel: ObservableObject {
   private func updateScore() {
     guard let proposalId = currentQuiz?.proposalId else { return }
 
-    let allQuizByIndex = Dictionary(uniqueKeysWithValues: allQuiz.map({ ($0.index, $0) }))
+    let allQuizByIndex = Dictionary(uniqueKeysWithValues: allQuiz.map({ ($0.maskIndex, $0) }))
 
     let questionResults = zip(selectedAnswer, isCorrect)
       .compactMap({ args -> QuestionResult? in
@@ -284,7 +275,7 @@ final class QuizViewModel: ObservableObject {
           return nil
         }
         return QuestionResult(
-          index: quiz.index,
+          index: quiz.maskIndex,
           isCorrect: _isCorrect.value,
           answer: quiz.answer,
           userAnswer: _selectedAnswer.value
@@ -311,13 +302,11 @@ final class QuizViewModel: ObservableObject {
 
   // MARK: - LLM Quiz Interactions
 
-  /// LLMクイズを表示
   func showLLMQuizSelections(index: Int) {
     guard isConfigured, index < allLLMQuiz.count else { return }
     currentLLMQuiz = allLLMQuiz[index]
   }
 
-  /// LLMクイズの回答を選択
   func selectLLMAnswer(_ answer: String) {
     guard let quiz = currentLLMQuiz, isLLMCorrect[quiz.id] == nil else { return }
 
@@ -341,12 +330,10 @@ final class QuizViewModel: ObservableObject {
     }
   }
 
-  /// LLMクイズを閉じる
   func dismissLLMQuiz() {
     currentLLMQuiz = nil
   }
 
-  /// LLMクイズスコアを更新
   private func updateLLMQuizScore() {
     let results = allLLMQuiz.compactMap { quiz -> LLMQuizResult? in
       guard let userAnswer = selectedLLMAnswer[quiz.id],
@@ -372,7 +359,6 @@ final class QuizViewModel: ObservableObject {
     }
   }
 
-  /// LLMクイズをリセット
   func resetLLMQuiz(for proposalId: String) async {
     await quizRepository.resetLLMQuizScore(for: proposalId)
     selectedLLMAnswer = [:]

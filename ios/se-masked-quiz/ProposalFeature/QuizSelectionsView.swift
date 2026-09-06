@@ -25,8 +25,8 @@ struct QuizSelectionsView: View {
         .padding(AppSpacing.lg)
       }
       .scrollBounceBehavior(.basedOnSize)
-      .animation(.snappy, value: viewModel.isCorrect[quiz.index])
-      .sensoryFeedback(trigger: viewModel.isCorrect[quiz.index]) { _, newValue in
+      .animation(.snappy, value: viewModel.isCorrect[quiz.maskIndex])
+      .sensoryFeedback(trigger: viewModel.isCorrect[quiz.maskIndex]) { _, newValue in
         guard let isCorrect = newValue else { return nil }
         return isCorrect ? .success : .error
       }
@@ -93,7 +93,7 @@ struct QuizSelectionsView: View {
   /// 未解答時も opacity で場所を確保する。表示・非表示で高さが変わると
   /// 直前に押したボタンの位置がずれるため
   private func resultLabel(for quiz: Quiz) -> some View {
-    let isCorrect = viewModel.isCorrect[quiz.index]
+    let isCorrect = viewModel.isCorrect[quiz.maskIndex]
     return Label(
       isCorrect == true ? "正解" : "不正解",
       systemImage: isCorrect == true ? "checkmark.circle.fill" : "xmark.circle.fill"
@@ -106,7 +106,7 @@ struct QuizSelectionsView: View {
   }
 
   private func primaryAction(for quiz: Quiz) -> some View {
-    let isAnswered = viewModel.isCorrect[quiz.index] != nil
+    let isAnswered = viewModel.isCorrect[quiz.maskIndex] != nil
     let hasNext = viewModel.nextUnansweredMaskIndex != nil
     return Button {
       if hasNext {
@@ -127,7 +127,7 @@ struct QuizSelectionsView: View {
   }
 
   private func choiceState(for choice: String, quiz: Quiz) -> ChoiceState {
-    guard let selectedAnswer = viewModel.selectedAnswer[quiz.index] else {
+    guard let selectedAnswer = viewModel.selectedAnswer[quiz.maskIndex] else {
       return .unanswered
     }
     if choice == quiz.answer {

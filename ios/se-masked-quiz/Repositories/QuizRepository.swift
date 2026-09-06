@@ -115,9 +115,9 @@ actor QuizRepositoryImpl: QuizRepository {
       return Quiz(
         id: UUID().uuidString,
         proposalId: proposalId,
-        index: answer.index,
+        maskIndex: answer.index,
         answer: answer.answer,
-        choices: answer.options
+        wrongChoices: answer.options
       )
     }
   }

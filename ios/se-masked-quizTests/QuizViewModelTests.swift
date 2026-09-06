@@ -102,11 +102,11 @@ final class QuizViewModelTests: XCTestCase {
     let proposalId = "0001"
     let quizzes = [
       Quiz(
-        id: "1", proposalId: proposalId, index: 0, answer: "Swift",
-        choices: ["Java", "Kotlin", "Rust"]),
+        id: "1", proposalId: proposalId, maskIndex: 0, answer: "Swift",
+        wrongChoices: ["Java", "Kotlin", "Rust"]),
       Quiz(
-        id: "2", proposalId: proposalId, index: 1, answer: "async",
-        choices: ["sync", "await", "concurrent"]),
+        id: "2", proposalId: proposalId, maskIndex: 1, answer: "async",
+        wrongChoices: ["sync", "await", "concurrent"]),
     ]
     setQuizzes(quizzes, for: proposalId)
 
@@ -164,8 +164,8 @@ final class QuizViewModelTests: XCTestCase {
     // Given
     let proposalId = "0001"
     let quiz = Quiz(
-      id: "1", proposalId: proposalId, index: 0, answer: "Swift",
-      choices: ["Java", "Kotlin", "Rust"])
+      id: "1", proposalId: proposalId, maskIndex: 0, answer: "Swift",
+      wrongChoices: ["Java", "Kotlin", "Rust"])
     setQuizzes([quiz], for: proposalId)
 
     sut = .init(
@@ -198,8 +198,8 @@ final class QuizViewModelTests: XCTestCase {
     // Given
     let proposalId = "0001"
     let quiz = Quiz(
-      id: "1", proposalId: proposalId, index: 0, answer: "Swift",
-      choices: ["Java", "Kotlin", "Rust"])
+      id: "1", proposalId: proposalId, maskIndex: 0, answer: "Swift",
+      wrongChoices: ["Java", "Kotlin", "Rust"])
     setQuizzes([quiz], for: proposalId)
 
     sut = .init(
@@ -232,8 +232,8 @@ final class QuizViewModelTests: XCTestCase {
     // Given
     let proposalId = "0001"
     let quiz = Quiz(
-      id: "1", proposalId: proposalId, index: 0, answer: "Swift",
-      choices: ["Java", "Kotlin", "Rust"])
+      id: "1", proposalId: proposalId, maskIndex: 0, answer: "Swift",
+      wrongChoices: ["Java", "Kotlin", "Rust"])
     setQuizzes([quiz], for: proposalId)
 
     sut = .init(
@@ -260,8 +260,8 @@ final class QuizViewModelTests: XCTestCase {
     // Given
     let proposalId = "0001"
     let quiz = Quiz(
-      id: "1", proposalId: proposalId, index: 0, answer: "Swift",
-      choices: ["Java", "Kotlin", "Rust"])
+      id: "1", proposalId: proposalId, maskIndex: 0, answer: "Swift",
+      wrongChoices: ["Java", "Kotlin", "Rust"])
     setQuizzes([quiz], for: proposalId)
 
     sut = .init(
@@ -302,14 +302,14 @@ final class QuizViewModelTests: XCTestCase {
 
     // Set up first quiz
     let quiz1 = Quiz(
-      id: "1", proposalId: proposalId1, index: 0, answer: "Swift",
-      choices: ["Java", "Kotlin", "Rust"])
+      id: "1", proposalId: proposalId1, maskIndex: 0, answer: "Swift",
+      wrongChoices: ["Java", "Kotlin", "Rust"])
     setQuizzes([quiz1], for: proposalId1)
 
     // Set up second quiz
     let quiz2 = Quiz(
-      id: "2", proposalId: proposalId2, index: 0, answer: "async",
-      choices: ["sync", "await", "concurrent"])
+      id: "2", proposalId: proposalId2, maskIndex: 0, answer: "async",
+      wrongChoices: ["sync", "await", "concurrent"])
     setQuizzes([quiz2], for: proposalId2)
 
     // Save scores for both quizzes
@@ -613,8 +613,8 @@ final class QuizViewModelTests: XCTestCase {
 
   private func makeMaskQuiz(index: Int, proposalId: String = "0001") -> Quiz {
     Quiz(
-      id: "q\(index)", proposalId: proposalId, index: index, answer: "correct",
-      choices: ["wrong1", "wrong2"])
+      id: "q\(index)", proposalId: proposalId, maskIndex: index, answer: "correct",
+      wrongChoices: ["wrong1", "wrong2"])
   }
 
   private func configuredViewModel(
@@ -640,7 +640,7 @@ final class QuizViewModelTests: XCTestCase {
 
     sut.showQuizSelections(maskIndex: 1)
 
-    XCTAssertEqual(sut.currentQuiz?.index, 1)
+    XCTAssertEqual(sut.currentQuiz?.maskIndex, 1)
   }
 
   func testShowQuizSelections_ClearsPendingScrollMaskIndex() async throws {
@@ -668,7 +668,7 @@ final class QuizViewModelTests: XCTestCase {
 
     sut.goToNextUnansweredQuiz()
 
-    XCTAssertEqual(sut.currentQuiz?.index, 1)
+    XCTAssertEqual(sut.currentQuiz?.maskIndex, 1)
     XCTAssertEqual(sut.pendingScrollMaskIndex, 1)
   }
 
@@ -681,7 +681,7 @@ final class QuizViewModelTests: XCTestCase {
 
     sut.goToNextUnansweredQuiz()
 
-    XCTAssertEqual(sut.currentQuiz?.index, 2)
+    XCTAssertEqual(sut.currentQuiz?.maskIndex, 2)
   }
 
   func testGoToNextUnansweredQuiz_WhenAllAnswered_DoesNothing() async throws {
@@ -693,7 +693,7 @@ final class QuizViewModelTests: XCTestCase {
 
     sut.goToNextUnansweredQuiz()
 
-    XCTAssertEqual(sut.currentQuiz?.index, 1)
+    XCTAssertEqual(sut.currentQuiz?.maskIndex, 1)
     XCTAssertEqual(sut.pendingScrollMaskIndex, 1)
   }
 

@@ -6,28 +6,27 @@ import Foundation
 struct Quiz: Codable, Identifiable {
   var id: String
   var proposalId: String
-  var index: Int  // HTML内のマスク位置
+  var maskIndex: Int
   var answer: String
-  var choices: [String]  // 誤答の選択肢
+  var wrongChoices: [String]
   var allChoices: [String]  // 全選択肢（シャッフル済み）
 
   init(
     id: String,
     proposalId: String,
-    index: Int,
+    maskIndex: Int,
     answer: String,
-    choices: [String]
+    wrongChoices: [String]
   ) {
     self.id = id
     self.proposalId = proposalId
-    self.index = index
+    self.maskIndex = maskIndex
     self.answer = answer
-    self.choices = choices
-    allChoices = (choices + [answer]).shuffled()
+    self.wrongChoices = wrongChoices
+    allChoices = (wrongChoices + [answer]).shuffled()
   }
 }
 
-/// マスククイズの回答結果
 struct QuestionResult: Codable, Equatable {
   let index: Int
   let isCorrect: Bool
@@ -35,7 +34,6 @@ struct QuestionResult: Codable, Equatable {
   let userAnswer: String
 }
 
-/// マスククイズのスコア（提案単位）
 struct ProposalScore: Codable {
   let proposalId: String
   let questionResults: [QuestionResult]

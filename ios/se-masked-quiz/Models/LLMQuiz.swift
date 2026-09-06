@@ -2,7 +2,7 @@
 //  LLMQuiz.swift
 //  se-masked-quiz
 //
-//  Created for Issue #12: LLM-generated Quiz Domain Model
+// LLM生成クイズのドメインモデル定義
 //
 
 import Foundation
@@ -60,7 +60,6 @@ struct LLMQuiz: Codable, Identifiable, Equatable {
   }
 }
 
-/// LLMクイズの回答結果
 struct LLMQuizResult: Codable, Equatable {
   let quizId: String
   let isCorrect: Bool
@@ -83,7 +82,6 @@ struct LLMQuizResult: Codable, Equatable {
   }
 }
 
-/// LLMクイズのスコア（提案単位）
 struct LLMQuizScore: Codable {
   let proposalId: String
   let results: [LLMQuizResult]

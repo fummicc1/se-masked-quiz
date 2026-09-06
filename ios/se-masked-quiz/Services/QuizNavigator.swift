@@ -13,7 +13,7 @@ enum QuizNavigator {
     in quizzes: [Quiz],
     answered: [Int: Bool]
   ) -> Int? {
-    let unanswered = quizzes.map(\.index).sorted().filter { answered[$0] == nil }
+    let unanswered = quizzes.map(\.maskIndex).sorted().filter { answered[$0] == nil }
     guard !unanswered.isEmpty else { return nil }
     guard let current else { return unanswered.first }
     return unanswered.first { $0 > current } ?? unanswered.first
