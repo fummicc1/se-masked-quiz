@@ -85,7 +85,7 @@ struct SERepository: Sendable {
     }
   }
 
-  /// 複数の提案IDをまとめて取得する（前提提案チップ用。本文含むフル取得）
+  /// 複数の提案IDをまとめて取得する（本文を含むフル取得）。
   func fetchProposals(byProposalIds ids: [String]) async throws -> [SwiftEvolution] {
     guard !ids.isEmpty else { return [] }
     var result: [SwiftEvolution] = []
@@ -97,8 +97,7 @@ struct SERepository: Sendable {
     return result
   }
 
-  /// グラフ描画用に提案IDから軽量ノード（proposalId/title のみ）を取得する。
-  /// `select` で巨大な content を転送しない。
+  /// 提案IDから軽量ノード（proposalId/title のみ）を取得する。content 等の重いフィールドは `select` で除外して転送量を抑える。
   func fetchGraphNodes(byProposalIds ids: [String]) async throws -> [GraphProposalNode] {
     guard !ids.isEmpty else { return [] }
     var result: [GraphProposalNode] = []
@@ -110,7 +109,7 @@ struct SERepository: Sendable {
     return result
   }
 
-  /// 提案IDを指定して単一の提案を取得する（デイリーチャレンジ用）
+  /// 提案IDを指定して単一の提案を取得する。
   func fetchProposal(
     byProposalId proposalId: String,
     track: ProposalTrack = .swiftEvolution

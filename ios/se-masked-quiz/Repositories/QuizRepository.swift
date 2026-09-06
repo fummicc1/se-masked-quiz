@@ -27,30 +27,22 @@ protocol QuizRepository: Actor, Sendable {
   /// Reset score for a specific proposal (mask quiz)
   func resetScore(for proposalId: String) async
 
-  /// Get all quiz counts for all proposals
   func getAllQuizCounts() async throws -> [String: Int]
 
   // MARK: - LLM Quiz Management
 
-  /// LLM生成クイズを保存
   func saveLLMQuizzes(_ quizzes: [LLMQuiz], for proposalId: String) async
 
-  /// LLM生成クイズを取得
   func getLLMQuizzes(for proposalId: String) async -> [LLMQuiz]
 
-  /// LLM生成クイズが存在するかチェック
   func hasLLMQuizzes(for proposalId: String) async -> Bool
 
-  /// LLM生成クイズを削除
   func deleteLLMQuizzes(for proposalId: String) async
 
-  /// LLMクイズスコアを保存
   func saveLLMQuizScore(_ score: LLMQuizScore) async
 
-  /// LLMクイズスコアを取得
   func getLLMQuizScore(for proposalId: String) async -> LLMQuizScore?
 
-  /// LLMクイズスコアをリセット
   func resetLLMQuizScore(for proposalId: String) async
 }
 
@@ -115,9 +107,9 @@ actor QuizRepositoryImpl: QuizRepository {
       return Quiz(
         id: UUID().uuidString,
         proposalId: proposalId,
-        index: answer.index,
+        maskIndex: answer.index,
         answer: answer.answer,
-        choices: answer.options
+        wrongChoices: answer.options
       )
     }
   }

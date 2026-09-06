@@ -11,7 +11,6 @@ import UserNotifications
 
 // MARK: - Preferences
 
-/// 学習リマインダーの設定（UserDefaults キーと既定値）
 enum ReminderPreferences {
   static let enabledKey = "reminder_enabled"
   static let hourKey = "reminder_hour"
@@ -40,7 +39,6 @@ enum ReminderPreferences {
 struct NotificationService: Sendable {
   static let dailyReminderIdentifier = "daily_study_reminder"
 
-  /// 通知の許諾を要求し、許可されたかを返す
   func requestAuthorization() async -> Bool {
     do {
       return try await UNUserNotificationCenter.current()
@@ -50,7 +48,6 @@ struct NotificationService: Sendable {
     }
   }
 
-  /// 現在の許諾状態
   func authorizationStatus() async -> UNAuthorizationStatus {
     await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
   }
@@ -97,7 +94,6 @@ struct NotificationService: Sendable {
     try? await center.add(request)
   }
 
-  /// リマインダーを解除
   func cancelDailyReminder() {
     UNUserNotificationCenter.current()
       .removePendingNotificationRequests(withIdentifiers: [Self.dailyReminderIdentifier])

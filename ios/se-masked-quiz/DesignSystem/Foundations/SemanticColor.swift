@@ -23,13 +23,10 @@ enum SemanticColor {
   static let accent = DynamicColor(light: AppColor.brand, dark: AppColor.brandLight)
   /// ストリーク（連続学習）を表す色。炎アイコン等に使用
   static let streak = DynamicColor(light: AppColor.brand, dark: AppColor.brandLight)
-  /// 正解時の色
   static let correct = Color.green
-  /// 不正解時の色
   static let incorrect = Color.red
   /// 警告・中間難易度を表す色
   static let warning = Color.orange
-  /// 進行中の状態を表す色
   static let inProgress = Color.blue
   /// 未開始・無効な状態を表す色
   static let neutral = Color.secondary

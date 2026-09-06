@@ -19,12 +19,10 @@ struct PayloadReference: Decodable, Sendable, Hashable {
 struct ProposalReferenceRepository: Sendable {
   private static let fetchLimit = 1000
 
-  /// 指定した proposal 群が「参照している」エッジ（outgoing）を取得する。
   func fetchOutgoing(fromProposalIds ids: [String]) async throws -> [PayloadReference] {
     try await fetch(field: "fromProposalId", ids: ids)
   }
 
-  /// 指定した proposal 群を「参照している」エッジ（incoming）を取得する。
   func fetchIncoming(toProposalIds ids: [String]) async throws -> [PayloadReference] {
     try await fetch(field: "toProposalId", ids: ids)
   }

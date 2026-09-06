@@ -50,7 +50,6 @@ struct StreakRecord: Codable, Equatable, Sendable {
     activeDays = try container.decodeIfPresent([Date].self, forKey: .activeDays) ?? []
   }
 
-  /// 指定日に学習済みか
   func isActive(on date: Date, calendar: Calendar = .current) -> Bool {
     guard let last = lastActiveDay else { return false }
     return calendar.isDate(last, inSameDayAs: date)
@@ -89,10 +88,8 @@ struct StreakUpdateResult: Sendable {
 
 /// @mockable
 protocol StreakRepository: Actor, Sendable {
-  /// 指定日の学習を記録し、更新後の状態を返す
   func recordActivity(on date: Date) async -> StreakUpdateResult
 
-  /// 現在のストリーク状態を取得
   func getStreak() async -> StreakRecord
 
   /// ストリークをリセット（デバッグ・テスト用）

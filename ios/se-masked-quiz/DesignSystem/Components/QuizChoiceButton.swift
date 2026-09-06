@@ -2,8 +2,7 @@
 //  QuizChoiceButton.swift
 //  se-masked-quiz
 //
-//  QuizSelectionsView / LLMQuizView で個別実装されていた選択肢ボタンを統合したコンポーネント。
-//  アイコン付きの表示方式（旧LLMQuizView方式）を正準デザインとする。
+//  アイコン付きの選択肢ボタン。正誤確定時にアイコンで正解/不正解を示す表示方式を正準デザインとする。
 //
 
 import SwiftUI

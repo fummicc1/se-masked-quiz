@@ -18,7 +18,6 @@ struct ModelDownloadView: View {
 
   var body: some View {
     List {
-      // モデル選択セクション
       Section {
         ForEach(LLMModelOption.allCases) { model in
           modelRow(for: model)
@@ -29,7 +28,6 @@ struct ModelDownloadView: View {
         Text("モデルのサイズが大きいほど、より複雑な問題の意図を正確に理解し、質の高いクイズを生成できます。ただし、ダウンロードサイズとメモリ使用量が増加します。")
       }
 
-      // ダウンロード進捗
       if let downloading = downloadingModel {
         Section("ダウンロード中: \(downloading.displayName)") {
           if let progress = downloadProgress, !progress.isIndeterminate {
@@ -58,7 +56,6 @@ struct ModelDownloadView: View {
         }
       }
 
-      // ストレージ情報
       Section("ストレージ") {
         HStack {
           Text("利用可能容量")
@@ -69,7 +66,6 @@ struct ModelDownloadView: View {
         }
       }
 
-      // エラー表示
       if let errorMessage {
         Section {
           HStack {
@@ -82,7 +78,6 @@ struct ModelDownloadView: View {
         }
       }
 
-      // Tips
       Section {
         VStack(alignment: .leading, spacing: 8) {
           Label("オンデバイスAI", systemImage: "cpu")

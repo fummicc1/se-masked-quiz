@@ -31,7 +31,6 @@ struct ProposalListScreen: View {
   @State private var statusFilter: ProposalStatusFilter = .all
   @State private var navigationPath = NavigationPath()
 
-  /// このタブのトラック（Swift Evolution / Swift Testing）。
   let track: ProposalTrack
 
   init(track: ProposalTrack = .swiftEvolution) {
@@ -144,13 +143,10 @@ struct ProposalListScreen: View {
       self.proposals = .loaded(response.docs.map { $0.toSwiftEvolution(track: track) })
       currentPage += 1
 
-      // 進捗情報を読み込む
       await loadQuizProgresses()
 
-      // お気に入り状態を読み込む
       await loadFavorites()
 
-      // 今日のチャレンジを読み込む（Swift Evolution タブのみ）
       if track == .swiftEvolution {
         await loadDailyChallenge()
       }
@@ -364,19 +360,15 @@ struct ProposalListScreen: View {
     }
   }
 
-  /// クイズの進捗情報を読み込む
   private func loadQuizProgresses() async {
     isLoadingProgress = true
     defer { isLoadingProgress = false }
 
     do {
-      // 全提案のスコアを取得
       let allScores = await activeQuizRepository.getAllScores()
 
-      // 全提案のクイズ数を取得
       let allQuizCounts = try await activeQuizRepository.getAllQuizCounts()
 
-      // ProposalProgressマップを生成
       var progresses: [String: ProposalProgress] = [:]
 
       for (proposalId, totalCount) in allQuizCounts {

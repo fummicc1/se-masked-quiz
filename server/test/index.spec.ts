@@ -76,7 +76,6 @@ describe('Payload CMS Configuration', () => {
 			validate: (value: unknown) => true | string;
 		};
 		expect(field.validate('0001')).toBe(true);
-		// ST- prefix is presentation-only; ids are stored bare, so a prefixed id is invalid here
 		expect(typeof field.validate('ST-0001')).toBe('string');
 		expect(typeof field.validate('12')).toBe('string');
 	});

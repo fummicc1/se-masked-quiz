@@ -6,9 +6,9 @@ private func makeQuizzes(_ indices: [Int]) -> [Quiz] {
     Quiz(
       id: "q\($0)",
       proposalId: "0001",
-      index: $0,
+      maskIndex: $0,
       answer: "correct",
-      choices: ["wrong1", "wrong2"]
+      wrongChoices: ["wrong1", "wrong2"]
     )
   }
 }

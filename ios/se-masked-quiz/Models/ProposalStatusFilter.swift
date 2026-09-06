@@ -2,8 +2,6 @@
 //  ProposalStatusFilter.swift
 //  se-masked-quiz
 //
-//  一覧のステータス絞り込み条件。
-//
 
 import Foundation
 

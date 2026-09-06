@@ -18,7 +18,6 @@ enum HTMLContent {
       case .string(let string):
         return string
       case .url(let url):
-        // Launch a task to load on background thread.
         let loadingTask = Task {
           try Data(contentsOf: url)
         }
@@ -244,7 +243,6 @@ private func parse(
   let scrollTargetJSON = scrollToMaskIndex.map(String.init) ?? "null"
   let focusedJSON = focusedMaskIndex.map(String.init) ?? "null"
 
-  // HTMLエスケープを解除
   let unescapedContent =
     htmlContent
     .replacingOccurrences(of: "&lt;", with: "<")
@@ -567,7 +565,6 @@ extension DefaultWebView.Coordinator: WKScriptMessageHandler {
   }
 }
 
-// Common WebView configuration
 extension DefaultWebView {
   fileprivate static func makeConfiguration(coordinator: Coordinator) -> WKWebViewConfiguration {
     let config = WKWebViewConfiguration()

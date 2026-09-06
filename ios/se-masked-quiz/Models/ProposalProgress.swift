@@ -1,11 +1,10 @@
 import Foundation
 
-/// 提案のクイズ進捗情報を表すモデル
 struct ProposalProgress: Equatable {
   let proposalId: String
-  let answeredCount: Int  // 回答数
-  let totalCount: Int  // 全問題数
-  let correctCount: Int  // 正解数
+  let answeredCount: Int
+  let totalCount: Int
+  let correctCount: Int
 
   // MARK: - Computed Properties
 
@@ -15,18 +14,15 @@ struct ProposalProgress: Equatable {
     return Double(answeredCount) / Double(totalCount)
   }
 
-  /// 進捗率（パーセンテージ）
   var progressPercentage: Double {
     progressRate * 100
   }
 
-  /// 正解率（パーセンテージ）
   var accuracyPercentage: Double {
     guard answeredCount > 0 else { return 0.0 }
     return Double(correctCount) / Double(answeredCount) * 100
   }
 
-  /// 進捗状態
   var status: ProgressStatus {
     if answeredCount == 0 {
       return .notStarted
@@ -39,9 +35,8 @@ struct ProposalProgress: Equatable {
 
 }
 
-/// 進捗状態を表す列挙型
 enum ProgressStatus {
-  case notStarted  // 未開始
-  case inProgress  // 進行中
-  case completed  // 完了
+  case notStarted
+  case inProgress
+  case completed
 }

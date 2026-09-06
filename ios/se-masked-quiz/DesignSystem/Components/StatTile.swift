@@ -2,8 +2,6 @@
 //  StatTile.swift
 //  se-masked-quiz
 //
-//  StreakStatsScreen内で個別実装されていた統計タイルを独立View化したもの。
-//
 
 import SwiftUI
 

@@ -15,7 +15,6 @@ struct LLMQuizView: View {
   var body: some View {
     NavigationStack {
       ScrollView {
-        // スコアヘッダー
         if let score = viewModel.llmQuizScore, score.totalCount > 0 {
           HStack {
             Label(
@@ -72,7 +71,6 @@ struct LLMQuizView: View {
     let isAnswered = viewModel.isLLMCorrect[quiz.id] != nil
 
     VStack(alignment: .leading, spacing: 12) {
-      // 質問ヘッダー
       HStack(alignment: .top) {
         AppBadge(text: "Q\(index + 1)", style: .solid(questionBadgeColor(quiz: quiz, isAnswered: isAnswered)))
         Text(quiz.question)
@@ -80,7 +78,6 @@ struct LLMQuizView: View {
           .fixedSize(horizontal: false, vertical: true)
       }
 
-      // 選択肢
       ForEach(quiz.allChoices, id: \.self) { choice in
         QuizChoiceButton(
           title: choice,
@@ -91,7 +88,6 @@ struct LLMQuizView: View {
         }
       }
 
-      // 回答後: 解説
       if isAnswered {
         VStack(alignment: .leading, spacing: 8) {
           Divider()

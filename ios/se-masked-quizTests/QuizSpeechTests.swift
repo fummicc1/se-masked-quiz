@@ -11,9 +11,9 @@ private func makeQuiz(index: Int, answer: String) -> Quiz {
   Quiz(
     id: "q\(index)",
     proposalId: "0001",
-    index: index,
+    maskIndex: index,
     answer: answer,
-    choices: ["wrong1", "wrong2"]
+    wrongChoices: ["wrong1", "wrong2"]
   )
 }
 
@@ -41,7 +41,6 @@ private func makeBlockingHandler(_ log: SpeechLog) -> (String, String) async -> 
   }
 }
 
-/// 空欄0と空欄1の両方を含む1つの段落
 private let paragraphContainingBlanks0And1: [ProposalSegment] = [
   .text("Actors provide "),
   .mask(index: 0),
@@ -273,7 +272,7 @@ struct QuizSpeechTests {
 
     viewModel.goToNextUnansweredQuiz()
 
-    #expect(viewModel.currentQuiz?.index == 1)
+    #expect(viewModel.currentQuiz?.maskIndex == 1)
     #expect(viewModel.speakingTarget == .paragraph)
     #expect(speech.stopCallCount == stopsBeforeMove)
   }
@@ -292,7 +291,7 @@ struct QuizSpeechTests {
 
     viewModel.showQuizSelections(maskIndex: 1)
 
-    #expect(viewModel.currentQuiz?.index == 1)
+    #expect(viewModel.currentQuiz?.maskIndex == 1)
     #expect(viewModel.speakingTarget == .paragraph)
   }
 

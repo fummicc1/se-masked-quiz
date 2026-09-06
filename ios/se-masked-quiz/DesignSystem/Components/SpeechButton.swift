@@ -2,8 +2,6 @@
 //  SpeechButton.swift
 //  se-masked-quiz
 //
-//  読み上げの開始と停止を兼ねるボタン。読み上げ中はアイコンとラベルが停止操作を示す。
-//
 
 import SwiftUI
 

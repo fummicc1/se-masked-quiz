@@ -8,7 +8,6 @@
 import AVFoundation
 import Foundation
 
-/// いま読み上げている対象
 enum SpeechTarget: Equatable, Sendable {
   /// フォーカス中の空欄を含む段落
   case paragraph

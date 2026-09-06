@@ -299,7 +299,6 @@ private struct NodeChipView: View {
     )
   }
 
-  /// 選択枠は非rootならaccent、root（accent塗り）上では白で示す。非選択の非rootは薄い輪郭のみ。
   private var strokeStyle: AnyShapeStyle {
     if isSelected {
       return AnyShapeStyle(isRoot ? Color.white : Color.accentColor)
